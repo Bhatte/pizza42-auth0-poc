@@ -7,6 +7,8 @@ These limits are part of the POC boundary, not hidden follow-up work.
 - Full order history in an ID token does not scale. Token and profile size grow with order count.
 - Email verification is read from a token claim and can remain stale until the SPA obtains a new token.
 - The marketing destination is simulated. No claim is made that a Segment or Braze campaign was delivered.
+- Simulated marketing events are held in a bounded in-memory ring buffer and disappear when the API restarts.
+- API rate limiting is process-local. A production deployment needs a shared limiter at the edge or a distributed backing store.
 - Google is the only planned social provider.
 - Account linking is not implemented.
 - A custom login domain may not be available on the trial tenant.

@@ -1,96 +1,119 @@
 # Pizza 42 identity proof of concept
 
-Pizza 42 is replacing a home-grown customer identity service used by its web ordering experience. This repository will contain a working Auth0 proof of concept: a React single-page application, a Node.js API, Auth0 tenant configuration, and the evidence needed to explain the security model and its trade-offs.
+Pizza 42 is a security-focused Auth0 proof of concept for a customer ordering journey. It combines a React single-page application, an Express API, a tested Auth0 Post-Login Action, and a protected marketing-event simulation. The implementation is intentionally small enough to review end to end: every trust decision has a direct test or a documented hosted validation step.
 
-The first commit establishes the contracts and delivery guardrails before implementation begins. That is deliberate. Authentication demos are easy to make look convincing while leaving important checks in the browser or hiding production caveats. This project treats those checks as part of the design.
+## What it proves
 
-## What the POC must prove
+- Universal Login supports the database and Google connection paths without handling credentials in Pizza 42 code.
+- Customers may sign in before verifying email, while the API blocks ordering until a fresh access token contains the verified claim.
+- The API validates RS256 signature, issuer, audience, expiry, and operation-specific scope.
+- The browser submits only SKU and quantity; the API owns the catalogue, resolves prices, and calculates totals.
+- Successful orders are appended to Auth0 `app_metadata.orders` using a least-privilege Management API client.
+- A Post-Login Action adds order history and a derived customer profile to namespaced ID-token claims.
+- A protected, customer-scoped endpoint produces a Segment-shaped demonstration event without making ordering depend on a marketing destination.
 
-- Customers can sign up or sign in with a database account or Google.
-- Signing in does not require a verified email address, but placing an order does.
-- The orders endpoint rejects missing, invalid, or incorrectly scoped access tokens.
-- Menu prices are calculated by the API, not trusted from the browser.
-- A successful order is written to the user's Auth0 `app_metadata` for the exercise.
-- Order history is added to the ID token at login, as required by the brief.
-- Customer context can be shaped for a downstream marketing integration without making checkout depend on the marketing platform.
+The requirements-to-evidence mapping is in [docs/requirements.md](docs/requirements.md).
 
-The full traceability matrix is in [docs/requirements.md](docs/requirements.md).
-
-## Target architecture
+## Architecture
 
 ```mermaid
 flowchart LR
     Customer["Customer browser"]
     Login["Auth0 Universal Login"]
     SPA["React SPA"]
-    API["Node.js orders API"]
-    Profile["Auth0 user profile"]
-    Marketing["Marketing adapter (simulated)"]
+    API["Express API"]
+    Profile["Auth0 user app_metadata"]
+    Marketing["Bounded event simulation"]
 
     Customer --> SPA
     SPA -->|"Authorization Code + PKCE"| Login
-    Login -->|"ID token + access token"| SPA
-    SPA -->|"Bearer token"| API
-    API -->|"Validate issuer, audience, expiry and scope"| API
-    API -->|"Read/write app_metadata"| Profile
-    API -->|"Non-blocking identify event"| Marketing
+    Login -->|"ID token + API access token"| SPA
+    SPA -->|"Bearer access token"| API
+    API -->|"Validate JWT, scope, claim and input"| API
+    API -->|"Least-privilege read/update"| Profile
+    API -->|"Protected identify event"| Marketing
 ```
 
-The browser expresses what the customer wants to buy. The API establishes whether the caller may order and calculates the authoritative total. Credentials are entered only in Universal Login and never pass through Pizza 42 application code.
+The browser expresses intent. The API establishes authority. ID tokens provide client identity context and are never accepted as API authorization; access tokens are kept in memory and raw token values are deliberately absent from the UI.
 
-See [docs/architecture.md](docs/architecture.md) for trust boundaries and token use.
+See [docs/architecture.md](docs/architecture.md) for the full trust-boundary walkthrough.
 
-## Planned repository structure
+## Repository map
 
 ```text
-auth0/   tenant notes and Post-Login Action source
-api/     Express API and Management API integration
-web/     React and Vite single-page application
-scripts/ repeatable seed, failure-path, and smoke tests
-docs/    architecture, decisions, limitations, and test evidence
+auth0/  Post-Login Action, tests, and repeatable tenant checklist
+api/    Express API, domain rules, Auth0 Management API adapter, and tests
+web/    React/Vite SPA, local visual preview, and interaction tests
+docs/   requirements, architecture, decisions, limitations, and evidence matrix
 ```
 
-The application folders will be added in vertical slices. Each slice must include its tests and documentation rather than landing as an unverified scaffold.
+## Run locally
 
-## Security model
+Node.js 22 is required. The repository is an npm workspace with a committed lockfile.
 
-The API, not the UI, enforces the controls that protect ordering:
+```bash
+nvm use
+npm ci
+cp api/.env.example api/.env
+cp web/.env.example web/.env
+```
 
-1. Validate the JWT signature through the tenant JWKS.
-2. Check issuer, audience, expiry, and the `create:orders` permission.
-3. Require the namespaced verified-email claim.
-4. Validate menu item identifiers and quantities against a server-side catalogue.
-5. Use a least-privilege machine-to-machine client to update `app_metadata`.
+Populate the two local environment files from a test tenant configured with [auth0/tenant-config.md](auth0/tenant-config.md). Never prefix a secret with `VITE_`; Vite values are public browser configuration.
 
-Secrets are not committed. Each application will provide an `.env.example` containing names and safe placeholders only. If you find a security issue, follow [SECURITY.md](SECURITY.md) rather than opening a public issue.
+Start the API and SPA in separate terminals:
 
-## POC and production are different
+```bash
+npm run dev --workspace @pizza42/api
+npm run dev --workspace @pizza42/web
+```
 
-Two requirements are intentionally implemented in a way that should not be copied into production: Auth0 profile metadata is used as the order store, and the full order history is placed in an ID token. Both choices satisfy the exercise, but neither scales with order volume. A production service would keep order data in a transactional datastore and issue bounded identity claims.
+The API defaults to `http://localhost:8080`; Vite serves the SPA at `http://localhost:5173`.
 
-Other limits, including the non-atomic metadata update and simulated marketing destination, are tracked in [docs/known-limitations.md](docs/known-limitations.md).
+## Verification
 
-## Current status
+The same gates run in pull requests:
 
-Repository foundation and shared contracts are in place. No application functionality is claimed yet. Test results will move from `Not run` to `Pass` only when the corresponding path is working in the hosted environment.
+```bash
+npm run format:check
+npm run lint
+npm run test:coverage
+npm run build
+npm audit --omit=dev --audit-level=high
+```
 
-| Workstream | Status |
-| --- | --- |
-| Shared contracts and repository controls | Complete |
-| Auth0 tenant and Post-Login Action | Not started |
-| Orders API | Not started |
-| React SPA | Not started |
-| Marketing demonstration | Not started |
-| Hosted smoke tests | Not started |
+The tests use a local OIDC discovery endpoint, local JWKS, and RSA-signed JWTs. This exercises the real bearer-token middleware for missing tokens, wrong audience, expiry, missing scope, user isolation, and verified-email enforcement instead of replacing authentication with a permissive stub.
 
-## Working on the repository
+## Security posture
 
-Changes are made on short-lived branches and merged through pull requests. Keep commits narrow, include a test or explicit validation note, and update the relevant decision or limitation when behaviour changes. [CONTRIBUTING.md](CONTRIBUTING.md) records the working agreement.
+The server applies Helmet headers, an exact CORS allowlist, bounded JSON bodies, API rate limiting, strict order schemas, safe JSON error contracts, subject-scoped reads, and server-authoritative pricing. Management API credentials stay server-side, token acquisition is cached before expiry, and the requested permissions are limited to `read:users` and `update:users_app_metadata`.
 
-## Documentation
+Report suspected vulnerabilities privately as described in [SECURITY.md](SECURITY.md). Internal briefing documents, real customer data, credentials, tokens, and tenant exports must never be committed.
 
+## POC versus production
+
+Two challenge requirements are deliberately unsuitable as a long-term design: Auth0 profile metadata is not a transactional order store, and a full order history should not grow inside an ID token. Production would use a domain datastore, atomic writes, bounded identity claims, distributed rate limiting, and an asynchronous event pipeline for downstream marketing tools.
+
+These and other explicit boundaries are in [docs/known-limitations.md](docs/known-limitations.md).
+
+## Status
+
+| Workstream                 | Local implementation         | Hosted evidence           |
+| -------------------------- | ---------------------------- | ------------------------- |
+| Repository controls and CI | Complete                     | Runs after branch push    |
+| Auth0 Post-Login Action    | Tested                       | Tenant deployment pending |
+| Orders and profile API     | Tested                       | Tenant smoke test pending |
+| React ordering journey     | Tested and visually reviewed | Hosted smoke test pending |
+| Marketing demonstration    | Tested                       | Hosted smoke test pending |
+
+No hosted result is claimed until the corresponding row in [docs/test-matrix.md](docs/test-matrix.md) has evidence.
+
+## Project references
+
+- [Tenant configuration](auth0/tenant-config.md)
 - [Requirements traceability](docs/requirements.md)
 - [Architecture and trust boundaries](docs/architecture.md)
+- [Design system](DESIGN.md)
 - [Design decisions](docs/design-decisions.md)
 - [Known limitations](docs/known-limitations.md)
 - [Test matrix](docs/test-matrix.md)
+- [Contributing](CONTRIBUTING.md)
