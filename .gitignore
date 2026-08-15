@@ -1,0 +1,28 @@
+# Local source material supplied for the interview exercise. These files are
+# intentionally excluded from the repository and must not be shared.
+/Auth0 Tech Challenge.docx
+/Internal Briefing_ Pizza 42 (Confidential).docx
+/Panel Members (For Sharing).docx
+/Pizza42_Master_Build_and_Panel_Execution_Spec_v3.md
+
+# Dependencies and build output
+node_modules/
+dist/
+coverage/
+.vite/
+
+# Local configuration and secrets
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+*.p12
+*.pfx
+
+# Logs and local tooling
+*.log
+.DS_Store
+.idea/
+.vscode/
+

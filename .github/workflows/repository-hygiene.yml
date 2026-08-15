@@ -1,0 +1,49 @@
+name: Repository hygiene
+
+on:
+  pull_request:
+  push:
+    branches:
+      - main
+
+permissions:
+  contents: read
+
+jobs:
+  repository-hygiene:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Reject committed local environment files
+        shell: bash
+        run: |
+          set -euo pipefail
+          tracked_env_files=$(git ls-files | grep -E '(^|/)\.env($|\.)' | grep -vE '(^|/)\.env\.example$' || true)
+          if [[ -n "$tracked_env_files" ]]; then
+            echo "Local environment files must not be committed:"
+            echo "$tracked_env_files"
+            exit 1
+          fi
+
+      - name: Reject source briefing documents
+        shell: bash
+        run: |
+          set -euo pipefail
+          if git ls-files | grep -E '\.(docx|pptx)$|Master_Build_and_Panel_Execution_Spec'; then
+            echo "Internal briefing or panel material must not be committed."
+            exit 1
+          fi
+
+      - name: Check whitespace
+        shell: bash
+        run: |
+          set -euo pipefail
+          if git rev-parse --verify HEAD^ >/dev/null 2>&1; then
+            git diff --check HEAD^ HEAD
+          else
+            empty_tree=$(git hash-object -t tree /dev/null)
+            git diff --check "$empty_tree" HEAD
+          fi
