@@ -1,0 +1,34 @@
+{
+  "name": "pizza42-auth0-poc",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Auth0 identity proof of concept for Pizza 42",
+  "engines": {
+    "node": ">=22 <25",
+    "npm": ">=10"
+  },
+  "workspaces": [
+    "auth0",
+    "api",
+    "web"
+  ],
+  "scripts": {
+    "build": "npm run build --workspaces --if-present",
+    "format": "prettier --write .",
+    "format:check": "prettier --check .",
+    "lint": "eslint . --max-warnings=0",
+    "test": "npm run test --workspaces --if-present",
+    "test:coverage": "npm run test:coverage --workspaces --if-present"
+  },
+  "devDependencies": {
+    "@eslint/js": "9.39.5",
+    "eslint": "9.39.5",
+    "eslint-plugin-jsx-a11y": "6.10.2",
+    "eslint-plugin-react": "7.37.5",
+    "eslint-plugin-react-hooks": "7.1.1",
+    "eslint-plugin-react-refresh": "0.5.4",
+    "globals": "17.11.0",
+    "prettier": "3.9.6"
+  }
+}

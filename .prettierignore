@@ -1,0 +1,8 @@
+coverage/
+dist/
+node_modules/
+package-lock.json
+Auth0 Tech Challenge.docx
+Internal Briefing_ Pizza 42 (Confidential).docx
+Panel Members (For Sharing).docx
+Pizza42_Master_Build_and_Panel_Execution_Spec_v3.md
