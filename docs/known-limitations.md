@@ -14,4 +14,3 @@ These limits are part of the POC boundary, not hidden follow-up work.
 - Migration is designed against the stated legacy hash scheme but is not run against customer data.
 - The POC is not a performance or availability test for 500,000 monthly active users or event-driven peak load.
 - Auth0 tenant availability and the hosted application's service levels remain those of their selected plans and providers.
-

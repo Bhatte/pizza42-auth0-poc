@@ -18,4 +18,3 @@ This matrix maps the ten implementation requirements to the planned evidence. St
 ## Acceptance rule
 
 UI state is not evidence of authorization. Requirements 7 and 8 must be proved by direct API calls that bypass the SPA. Requirement 9 must be verified in the Auth0 profile, and requirement 10 requires a newly issued ID token.
-

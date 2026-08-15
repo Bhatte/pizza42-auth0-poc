@@ -28,4 +28,3 @@ Do not commit credentials, tenant secrets, real customer data, panel material, s
 ## Definition of done
 
 A change is done when the code, tests, and documentation agree. Security controls must be enforced at the API boundary and demonstrated with a failure case as well as a happy path.
-

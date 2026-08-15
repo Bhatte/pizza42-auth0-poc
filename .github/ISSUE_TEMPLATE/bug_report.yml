@@ -39,4 +39,3 @@ body:
     attributes:
       label: Security impact
       description: Use a private security advisory instead if the report exposes a vulnerability.
-

@@ -50,4 +50,3 @@ The current identity store uses salted SHA-256 password hashes and cannot force 
 - automatic migration through a custom database connection, where the first successful legacy login moves the user to Auth0.
 
 The proof of concept documents both paths but does not move real customer records.
-

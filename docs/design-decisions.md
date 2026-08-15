@@ -79,4 +79,3 @@ Alternatives considered: silent linking when the email strings match.
 Why: email equality alone is not enough proof that two identities belong to the same person. Incorrect linking can expose another customer's data.
 
 Trade-off: a customer who uses both methods may initially have separate accounts. A production linking flow would require re-authentication and explicit consent.
-

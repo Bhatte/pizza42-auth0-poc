@@ -23,4 +23,3 @@
 | Privacy | Customer requests another user's data | Request is rejected or impossible by contract | Not run |
 | Marketing | Simulated destination unavailable | Login and ordering remain available | Not run |
 | Deployment | Second device and network | Hosted login and order path succeeds | Not run |
-
