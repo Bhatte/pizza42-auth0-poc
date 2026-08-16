@@ -1,58 +1,164 @@
 # Auth0 tenant configuration
 
-This checklist keeps tenant changes repeatable while leaving tenant identifiers and secrets out of source control. Record sanitized screenshots separately when validating the hosted path.
+This records the tenant as it is actually configured, not as it was planned.
+Every value below was read back from the Management API after the change.
+Tenant identifiers are public; secrets are never recorded here.
 
-## 1. Register the Pizza 42 API
+Tenant: `tejasbhat.eu.auth0.com` (EU region)
 
-Create an Auth0 API with:
+## 1. Pizza 42 Orders API
 
-- name: `Pizza 42 Orders API`;
-- identifier: `https://api.pizza42.com`;
-- signing algorithm: `RS256`;
-- permissions: `create:orders` and `read:orders`;
-- RBAC enabled, with permissions included in access tokens.
+| Setting                   | Value                          |
+| ------------------------- | ------------------------------ |
+| Name                      | `Pizza 42 Orders API`          |
+| Identifier (audience)     | `https://api.pizza42.com`      |
+| Signing algorithm         | `RS256`                        |
+| Permissions               | `create:orders`, `read:orders` |
+| RBAC (`enforce_policies`) | **off**                        |
+| Token dialect             | `access_token`                 |
+| Allow offline access      | on                             |
 
-Assign both permissions to the POC customer role. The Express API still checks the operation-specific scope; a successful login alone does not authorize an order.
+RBAC is deliberately off. The use case has one API capability and no role
+hierarchy, so OAuth scopes alone express "this token may place an order",
+which is what the challenge asks for. With RBAC on, Auth0 narrows the `scope`
+claim to permissions granted through an assigned role, so a customer who signs
+up during a demo would receive a token without `create:orders` and be rejected
+for the wrong reason. Introducing a second authorization model would add that
+failure mode without adding customer value.
 
-## 2. Register the single-page application
+Offline access is on because the SPA requests `offline_access` for refresh
+tokens.
 
-Create an application of type **Single Page Application**. For local development, add only these exact origins:
+## 2. Pizza 42 Web (single-page application)
 
-| Setting               | Local value             |
-| --------------------- | ----------------------- |
-| Allowed Callback URLs | `http://localhost:5173` |
-| Allowed Logout URLs   | `http://localhost:5173` |
-| Allowed Web Origins   | `http://localhost:5173` |
+| Setting               | Value                                                    |
+| --------------------- | -------------------------------------------------------- |
+| Client ID             | `9gEcvJTrO7n76XSSCIRJ48LAYQBXQnYf`                       |
+| Type                  | Single Page Application                                  |
+| Grant types           | `authorization_code`, `refresh_token`                    |
+| Token endpoint auth   | `none` — a public client holds no secret                 |
+| Allowed Callback URLs | `http://localhost:5173`, `https://pizza42.tejasbhat.com` |
+| Allowed Logout URLs   | `http://localhost:5173`, `https://pizza42.tejasbhat.com` |
+| Allowed Web Origins   | `http://localhost:5173`, `https://pizza42.tejasbhat.com` |
 
-Add the final HTTPS host as a separate exact value before deployment. Do not use wildcard origins. Copy the public domain and client ID to `web/.env`; a SPA has no client secret.
+Exact origins only; no wildcards.
 
-The React provider requests Authorization Code with PKCE through the Auth0 SDK, the API audience, and `openid profile email offline_access create:orders read:orders`. Refresh tokens remain in memory and should use rotation in the tenant.
+### Refresh tokens
 
-## 3. Enable customer connections
+Rotation is on with a **3 second leeway**. Zero leeway causes false reuse
+detection when two near-simultaneous exchanges race, which the SPA can trigger
+by refreshing verification state while another request is in flight. Auth0
+provides the overlap window for exactly this case.
 
-Enable one database connection for email/password accounts and one Google social connection for the Pizza 42 SPA. Configure the database connection to send verification email, but do not block login for an unverified address: the orders API owns that authorization rule.
+Absolute lifetime 30 days, idle lifetime 7 days.
 
-Keep self-service password reset enabled through Universal Login. Do not build an embedded credential form in the SPA. Do not automatically link social and database users based only on a matching email address.
+## 3. Customer connections
 
-## 4. Add the Post-Login Action
+| Connection                         | Strategy        | Enabled for Pizza 42 Web |
+| ---------------------------------- | --------------- | ------------------------ |
+| `Username-Password-Authentication` | `auth0`         | yes                      |
+| `google-oauth2`                    | `google-oauth2` | yes                      |
 
-Create a Post-Login Action using [actions/post-login.js](actions/post-login.js), deploy it, and place it in the Login flow. The Action:
+A connection that exists but is not enabled for the application will fail
+login with no useful error, so both are verified through
+`GET /api/v2/connections/{id}/clients` rather than assumed.
 
-- writes the namespaced `email_verified` claim to ID and access tokens;
-- copies `app_metadata.orders` to the ID token for the exercise;
-- derives a bounded customer-profile summary for the marketing demonstration.
+The database connection sends a verification email on signup and still permits
+sign-in while `email_verified` is false. Verification is enforced by the orders
+API, not by the login flow — that is the customer's stated requirement.
 
-The full history claim is an explicit POC constraint, not the proposed production design.
+Self-service password reset is the standard Universal Login flow. No embedded
+credential form exists in the SPA.
 
-## 5. Authorize the Management API client
+Social and database identities are **not** linked automatically on matching
+email. See [../docs/design-decisions.md](../docs/design-decisions.md).
 
-Create a separate machine-to-machine application for the Node API and authorize it for the Auth0 Management API with only:
+## 4. Post-Login Action
 
-- `read:users`;
-- `update:users_app_metadata`.
+Name: `Pizza 42 Post-Login Claims`, runtime `node22`, bound to the `post-login`
+trigger. Source of truth is [actions/post-login.js](actions/post-login.js).
 
-Put its client ID and secret in `api/.env`. Never expose them through Vite variables, browser code, screenshots, logs, or repository history.
+The Action:
 
-## 6. Validate the hosted path
+- writes the namespaced `email_verified` claim to both the ID and access token;
+- copies `app_metadata.orders` into the ID token for challenge requirement 10;
+- derives a bounded customer profile for the marketing demonstration.
 
-Run each case in [../docs/test-matrix.md](../docs/test-matrix.md), including direct API calls that bypass the SPA. Before sharing evidence, remove access tokens, authorization headers, tenant secrets, email addresses, and Management API responses that contain unrelated profile data.
+It performs no metadata writes and makes no network calls. The `post-login`
+trigger also runs on refresh-token exchange, so any side effect placed here
+would execute on every silent token refresh rather than once per login. Keeping
+it a pure function of `event.user` is what makes the verification-refresh flow
+correct and free.
+
+## 5. Pizza 42 API Service (machine to machine)
+
+| Setting   | Value                                     |
+| --------- | ----------------------------------------- |
+| Client ID | `4G5tKGFuLpXYON7cXcgMQPcNsvH79Qxv`        |
+| Grant     | `client_credentials`                      |
+| Audience  | `https://tejasbhat.eu.auth0.com/api/v2/`  |
+| Scopes    | `read:users`, `update:users_app_metadata` |
+
+Not `update:users`. The orders service can append orders and nothing else — it
+cannot change an email address, a password or a blocked flag, so compromising
+this credential is bounded to metadata. The cost of that choice is real: a
+programmatic "resend verification email" feature needs broader permission, so
+it is not built. Use Dashboard → Users → Actions → Send Verification Email.
+
+Client ID and secret live only in the API environment. They are never exposed
+through Vite variables, browser code, logs or this repository.
+
+## 6. Pizza 42 Demo Token Helper (machine to machine)
+
+| Setting   | Value                              |
+| --------- | ---------------------------------- |
+| Client ID | `VY0ICkqeHIum33g9LU9E7duDnCdLk3Kg` |
+| Grant     | `client_credentials`               |
+| Audience  | `https://api.pizza42.com`          |
+| Scopes    | `read:orders` only                 |
+
+Exists so the wrong-scope failure demonstration is deterministic: it issues a
+cryptographically valid token that deliberately lacks ordering authority.
+
+```bash
+curl -s -X POST https://tejasbhat.eu.auth0.com/oauth/token \
+  -H 'content-type: application/json' \
+  -d '{"client_id":"VY0ICkqeHIum33g9LU9E7duDnCdLk3Kg","client_secret":"<secret>","audience":"https://api.pizza42.com","grant_type":"client_credentials"}'
+```
+
+## 7. Attack protection
+
+| Control                     | State |
+| --------------------------- | ----- |
+| Brute force protection      | on    |
+| Suspicious IP throttling    | on    |
+| Breached password detection | on    |
+
+## 8. Recreating this tenant
+
+```bash
+auth0 login
+auth0 apis create --name "Pizza 42 Orders API" --identifier https://api.pizza42.com \
+  --scopes create:orders,read:orders --offline-access
+auth0 apps create --name "Pizza 42 Web" --type spa \
+  --callbacks http://localhost:5173,https://pizza42.tejasbhat.com \
+  --logout-urls http://localhost:5173,https://pizza42.tejasbhat.com \
+  --origins http://localhost:5173,https://pizza42.tejasbhat.com
+auth0 apps create --name "Pizza 42 API Service" --type m2m
+auth0 actions create --name "Pizza 42 Post-Login Claims" --trigger post-login \
+  --code "$(cat auth0/actions/post-login.js)"
+```
+
+Then, because these are not exposed as CLI flags:
+
+- set `enforce_policies:false` and `token_dialect:"access_token"` on the API;
+- enable both connections for the SPA via
+  `PATCH /api/v2/connections/{id}/clients` with `[{"client_id":"…","status":true}]`
+  — the older `enabled_clients` property on `PATCH /connections/{id}` is
+  rejected by the current Management API;
+- set `refresh_token.leeway` to 3 on the SPA;
+- grant the M2M client only `read:users` and `update:users_app_metadata`;
+- bind the Action to the `post-login` trigger.
+
+Verify with [../docs/test-matrix.md](../docs/test-matrix.md) before claiming any
+of it works.

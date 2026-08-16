@@ -1,5 +1,12 @@
 # Pizza 42 identity proof of concept
 
+|                  |                                           |
+| ---------------- | ----------------------------------------- |
+| **Application**  | https://pizza42-web.vercel.app            |
+| **API**          | https://pizza42-api.vercel.app            |
+| **Health check** | https://pizza42-api.vercel.app/api/health |
+| **Tenant**       | `tejasbhat.eu.auth0.com`                  |
+
 Pizza 42 is a security-focused Auth0 proof of concept for a customer ordering journey. It combines a React single-page application, an Express API, a tested Auth0 Post-Login Action, and a protected marketing-event simulation. The implementation is intentionally small enough to review end to end: every trust decision has a direct test or a documented hosted validation step.
 
 ## What it proves
@@ -41,9 +48,9 @@ See [docs/architecture.md](docs/architecture.md) for the full trust-boundary wal
 ## Repository map
 
 ```text
-auth0/  Post-Login Action, tests, and repeatable tenant checklist
+auth0/  Post-Login Action, order seed script, tests, and tenant configuration
 api/    Express API, domain rules, Auth0 Management API adapter, and tests
-web/    React/Vite SPA, local visual preview, and interaction tests
+web/    React/Vite SPA and interaction tests
 docs/   requirements, architecture, decisions, limitations, and evidence matrix
 ```
 
@@ -97,13 +104,14 @@ These and other explicit boundaries are in [docs/known-limitations.md](docs/know
 
 ## Status
 
-| Workstream                 | Local implementation         | Hosted evidence           |
-| -------------------------- | ---------------------------- | ------------------------- |
-| Repository controls and CI | Complete                     | Runs after branch push    |
-| Auth0 Post-Login Action    | Tested                       | Tenant deployment pending |
-| Orders and profile API     | Tested                       | Tenant smoke test pending |
-| React ordering journey     | Tested and visually reviewed | Hosted smoke test pending |
-| Marketing demonstration    | Tested                       | Hosted smoke test pending |
+| Workstream                 | Local implementation         | Hosted evidence                            |
+| -------------------------- | ---------------------------- | ------------------------------------------ |
+| Repository controls and CI | Complete                     | Runs after branch push                     |
+| Auth0 tenant               | Configured                   | Deployed; RBAC off, both connections live  |
+| Auth0 Post-Login Action    | Tested                       | Deployed v2, bound to the post-login flow  |
+| Orders and profile API     | Tested                       | Deployed; 401/403 paths verified live      |
+| React ordering journey     | Tested and visually reviewed | Deployed; interactive login smoke test due |
+| Marketing demonstration    | Tested                       | Deployed; needs seeded order history       |
 
 No hosted result is claimed until the corresponding row in [docs/test-matrix.md](docs/test-matrix.md) has evidence.
 

@@ -9,6 +9,9 @@ These limits are part of the POC boundary, not hidden follow-up work.
 - The marketing destination is simulated. No claim is made that a Segment or Braze campaign was delivered.
 - Simulated marketing events are held in a bounded in-memory ring buffer and disappear when the API restarts.
 - API rate limiting is process-local. A production deployment needs a shared limiter at the edge or a distributed backing store.
+- Tokens are cached in memory only. A hard browser refresh drops the SPA session; Auth0's own session then restores it on the next sign-in click without re-entering credentials. A custom login domain would make that silent restore first-party.
+- The API is deployed as a serverless function, so the marketing ring buffer and the Management API token cache do not survive between invocations. `GET /api/marketing/events` therefore returns only events from the same warm instance.
+- Auth0 Management API per-tenant rate limits, not the API itself, are the scaling ceiling on the ordering path. This is the main reason production keeps orders in a Pizza 42 datastore.
 - Google is the only planned social provider.
 - Account linking is not implemented.
 - A custom login domain may not be available on the trial tenant.
