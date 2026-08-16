@@ -1,0 +1,35 @@
+[
+  {
+    "store": "Dublin Camden Street",
+    "items": [
+      { "sku": "PIZ-MARG-L", "qty": 1 },
+      { "sku": "SID-GARL", "qty": 1 }
+    ]
+  },
+  {
+    "store": "Dublin Camden Street",
+    "items": [{ "sku": "PIZ-MARG-L", "qty": 2 }]
+  },
+  {
+    "store": "Dublin Rathmines",
+    "items": [
+      { "sku": "PIZ-VEG-L", "qty": 1 },
+      { "sku": "SID-GARL", "qty": 2 }
+    ]
+  },
+  {
+    "store": "Dublin Camden Street",
+    "items": [
+      { "sku": "PIZ-MARG-L", "qty": 1 },
+      { "sku": "PIZ-VEG-L", "qty": 1 }
+    ]
+  },
+  {
+    "store": "Dublin Camden Street",
+    "items": [{ "sku": "SID-GARL", "qty": 3 }]
+  },
+  {
+    "store": "Dublin Camden Street",
+    "items": [{ "sku": "PIZ-MARG-L", "qty": 1 }]
+  }
+]

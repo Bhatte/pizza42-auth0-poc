@@ -14,6 +14,14 @@ function mostFrequent(items, selectKey) {
   );
 }
 
+// "Last Pizza Ordered" is a trait Pizza 42 marketing named directly. Prefer a
+// pizza from the most recent order; fall back to whatever else was on it.
+function headlineItem(order) {
+  const items = order?.items ?? [];
+  const pizza = items.find((item) => item.category === "pizza" || item.size);
+  return (pizza ?? items[0])?.name ?? null;
+}
+
 function segmentFor(orderCount) {
   if (orderCount >= 10) return "Loyal Regular";
   if (orderCount >= 4) return "Returning Regular";
@@ -31,6 +39,7 @@ function deriveCustomerProfile(orders, event) {
       order_count: 0,
       favourite_item: null,
       favourite_store: null,
+      last_item_ordered: null,
       last_order_at: null,
       average_order_value: 0,
       identity_provider: identityProvider,
@@ -51,6 +60,7 @@ function deriveCustomerProfile(orders, event) {
     order_count: orderCount,
     favourite_item: mostFrequent(items, (item) => item.name),
     favourite_store: mostFrequent(orders, (order) => order.store),
+    last_item_ordered: headlineItem(newestFirst[0]),
     last_order_at: newestFirst[0]?.placed_at ?? null,
     average_order_value: Math.round((total / orderCount) * 100) / 100,
     identity_provider: identityProvider,
