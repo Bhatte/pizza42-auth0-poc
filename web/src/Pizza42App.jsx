@@ -8,9 +8,26 @@ const EMAIL_VERIFIED_CLAIM = "https://pizza42.com/email_verified";
 const ORDERS_CLAIM = "https://pizza42.com/orders";
 const CUSTOMER_PROFILE_CLAIM = "https://pizza42.com/customer_profile";
 
+function useMenu(api) {
+  const [state, setState] = useState({ status: "loading" });
+
+  useEffect(() => {
+    let active = true;
+    api
+      .getMenu()
+      .then((menu) => active && setState({ status: "ready", menu }))
+      .catch(() => active && setState({ status: "error" }));
+    return () => {
+      active = false;
+    };
+  }, [api]);
+
+  return state;
+}
+
 export function Pizza42App({ auth, api }) {
   if (auth.isLoading) return <LoadingScreen />;
-  if (!auth.isAuthenticated) return <GuestExperience auth={auth} />;
+  if (!auth.isAuthenticated) return <GuestExperience auth={auth} api={api} />;
   return <OrderingExperience auth={auth} api={api} />;
 }
 
@@ -25,38 +42,121 @@ function Brand() {
   );
 }
 
+function Colophon({ children }) {
+  return (
+    <footer className="colophon">
+      <div className="colophon-shops">
+        <p>Camden Street · Rathmines · Smithfield</p>
+        <p>Kitchen open until 23:00</p>
+      </div>
+      {children}
+      <p className="colophon-note">
+        A build for the Auth0 technical challenge. No payment is taken and no
+        pizza leaves the kitchen.
+      </p>
+    </footer>
+  );
+}
+
 function LoadingScreen() {
   return (
     <main className="loading-screen" aria-busy="true">
       <Brand />
       <div className="loading-copy">
         <span className="loading-dot" aria-hidden="true" />
-        <p>Preparing your menu…</p>
+        <p>Lighting the oven…</p>
       </div>
     </main>
   );
 }
 
-function GuestExperience({ auth }) {
+function MenuList({ menuState, onAdd }) {
+  if (menuState.status === "error") {
+    return (
+      <div className="inline-error" role="alert">
+        <strong>The kitchen is not answering.</strong>
+        <p>Tonight&apos;s menu could not be loaded. Try again in a moment.</p>
+      </div>
+    );
+  }
+
+  if (menuState.status === "loading") {
+    return (
+      <div
+        className="menu-skeleton"
+        aria-live="polite"
+        aria-label="Loading tonight's menu"
+      >
+        <p>Checking what&apos;s on tonight…</p>
+        <span />
+        <span />
+        <span />
+      </div>
+    );
+  }
+
+  return (
+    <ol className="menu-list">
+      {menuState.menu.items.map((item, index) => (
+        <li key={item.sku} className="menu-row">
+          <span className="menu-number" aria-hidden="true">
+            {String(index + 1).padStart(2, "0")}
+          </span>
+          <div className="menu-copy">
+            <div className="menu-title-line">
+              <h2>{item.name}</h2>
+              {item.size ? <span>{item.size}</span> : null}
+            </div>
+            <p>{item.description}</p>
+          </div>
+          <strong className="menu-price">
+            {formatEuro.format(item.price)}
+          </strong>
+          {onAdd ? (
+            <button
+              className="add-button"
+              type="button"
+              onClick={() => onAdd(item.sku)}
+              aria-label={`Add ${item.name}`}
+            >
+              <PlusIcon /> <span>Add</span>
+            </button>
+          ) : (
+            <span className="menu-spacer" aria-hidden="true" />
+          )}
+        </li>
+      ))}
+    </ol>
+  );
+}
+
+function GuestExperience({ auth, api }) {
+  const menuState = useMenu(api);
+
   return (
     <main className="guest-shell">
       <header className="guest-header">
         <Brand />
-        <p className="security-note">
-          <ShieldIcon /> Secured with Auth0
-        </p>
+        <button
+          className="button button-quiet"
+          type="button"
+          onClick={() => auth.loginWithRedirect()}
+        >
+          Sign in
+        </button>
       </header>
 
       <section className="guest-hero" aria-labelledby="welcome-heading">
         <div className="hero-copy">
-          <p className="eyebrow">Fast identity. Hot pizza.</p>
+          <p className="eyebrow">Camden Street, Dublin 2</p>
           <h1 id="welcome-heading">
-            Your Friday night,
-            <span> one less thing to think about.</span>
+            Three pizzas.
+            <span> Done properly.</span>
           </h1>
           <p className="hero-intro">
-            Sign in once, choose your favourites and leave password drama to us.
-            Dinner should be the complicated decision.
+            Dough proved for two days, San Marzano tomatoes, and an oven hot
+            enough to finish a base in ninety seconds. Twenty minutes from your
+            order to the box.
           </p>
           <div className="hero-actions">
             <button
@@ -64,10 +164,10 @@ function GuestExperience({ auth }) {
               type="button"
               onClick={() => auth.loginWithRedirect()}
             >
-              Sign in to order <ArrowIcon />
+              Start your order <ArrowIcon />
             </button>
             <button
-              className="button button-quiet"
+              className="button button-secondary"
               type="button"
               onClick={() =>
                 auth.loginWithRedirect({
@@ -78,11 +178,6 @@ function GuestExperience({ auth }) {
               Create an account
             </button>
           </div>
-          <ul className="guest-promises" aria-label="Ordering benefits">
-            <li>Google or email sign-in</li>
-            <li>Self-service password reset</li>
-            <li>Prices checked by our kitchen</li>
-          </ul>
         </div>
 
         <div className="hero-scene" aria-hidden="true">
@@ -95,27 +190,37 @@ function GuestExperience({ auth }) {
           </div>
           <div className="order-ticket">
             <p>CAMDEN ST · 19:42</p>
-            <strong>YOUR USUAL?</strong>
+            <strong>TABLE ORDER</strong>
             <span>Margherita · Large</span>
             <span>Garlic bread</span>
             <i />
             <b>€19.00</b>
           </div>
-          <p className="scene-caption">Tonight&apos;s shortcut</p>
+          <p className="scene-caption">Out of the oven at 20:04</p>
         </div>
       </section>
 
-      <footer className="guest-footer">
-        <p>600 kitchens across Europe</p>
-        <p>Identity proof of concept · No payment is taken</p>
-      </footer>
+      <section className="guest-menu" aria-labelledby="guest-menu-heading">
+        <div className="section-heading">
+          <div>
+            <p className="eyebrow">Tonight</p>
+            <h2 id="guest-menu-heading">On the counter</h2>
+          </div>
+          <p className="kitchen-status">
+            <span aria-hidden="true" /> Taking orders
+          </p>
+        </div>
+        <MenuList menuState={menuState} />
+      </section>
+
+      <Colophon />
     </main>
   );
 }
 
 function OrderingExperience({ auth, api }) {
-  const [menu, setMenu] = useState(null);
-  const [menuError, setMenuError] = useState(false);
+  const menuState = useMenu(api);
+  const [chosenStore, setChosenStore] = useState("");
   const [basket, setBasket] = useState({});
   const [orderState, setOrderState] = useState({ status: "idle" });
   const [marketingState, setMarketingState] = useState({ status: "loading" });
@@ -123,38 +228,26 @@ function OrderingExperience({ auth, api }) {
     auth.idTokenClaims?.[EMAIL_VERIFIED_CLAIM] === true,
   );
 
-  useEffect(() => {
-    let active = true;
-    api
-      .getMenu()
-      .then((result) => {
-        if (active) setMenu(result);
-      })
-      .catch(() => {
-        if (active) setMenuError(true);
-      });
-    return () => {
-      active = false;
-    };
-  }, [api]);
+  const menu = menuState.status === "ready" ? menuState.menu : null;
+  // Derived, not stored: the first store is a fallback until the customer picks
+  // one, so the menu arriving never has to write state from an effect.
+  const store = chosenStore || menu?.stores?.[0] || "";
+
+  const subject = auth.idTokenClaims?.sub;
+  const { getAccessTokenSilently } = auth;
 
   useEffect(() => {
     let active = true;
 
-    auth
-      .getAccessTokenSilently()
+    getAccessTokenSilently()
       .then((accessToken) => api.identifyCustomer(accessToken))
-      .then((event) => {
-        if (active) setMarketingState({ status: "ready", event });
-      })
-      .catch(() => {
-        if (active) setMarketingState({ status: "unavailable" });
-      });
+      .then((event) => active && setMarketingState({ status: "ready", event }))
+      .catch(() => active && setMarketingState({ status: "unavailable" }));
 
     return () => {
       active = false;
     };
-  }, [api, auth]);
+  }, [api, subject, getAccessTokenSilently]);
 
   const basketItems = useMemo(() => {
     if (!menu) return [];
@@ -188,7 +281,7 @@ function OrderingExperience({ auth, api }) {
       const accessToken = await auth.getAccessTokenSilently();
       const order = await api.createOrder(
         {
-          store: "Dublin Camden Street",
+          store,
           items: basketItems.map(({ sku, qty }) => ({ sku, qty })),
         },
         accessToken,
@@ -207,14 +300,14 @@ function OrderingExperience({ auth, api }) {
         <div className="header-inner">
           <Brand />
           <div className="account-actions">
-            <span
-              className={`verification-pill ${isVerified ? "is-verified" : "needs-verification"}`}
-            >
-              {isVerified ? <CheckIcon /> : <MailIcon />}
-              {isVerified ? "Email verified" : "Email check needed"}
-            </span>
+            {isVerified ? null : (
+              <span className="verification-pill needs-verification">
+                <MailIcon />
+                Email not confirmed
+              </span>
+            )}
             <div className="account-copy">
-              <span>{auth.user?.name ?? "Pizza lover"}</span>
+              <span>{auth.user?.name ?? "Your account"}</span>
               <small>{auth.user?.email}</small>
             </div>
             <button className="text-button" type="button" onClick={auth.logout}>
@@ -227,6 +320,7 @@ function OrderingExperience({ auth, api }) {
       <div className="app-content">
         {!isVerified ? (
           <VerificationNotice
+            email={auth.user?.email}
             errorMessage={
               orderState.status === "error" &&
               orderState.error?.code === "email_not_verified"
@@ -242,7 +336,7 @@ function OrderingExperience({ auth, api }) {
 
         <p className="sr-only" role="status" aria-live="polite">
           {isVerified && auth.idTokenClaims?.[EMAIL_VERIFIED_CLAIM] !== true
-            ? "Email verified. You can place your order."
+            ? "Email confirmed. You can place your order."
             : ""}
         </p>
 
@@ -250,7 +344,19 @@ function OrderingExperience({ auth, api }) {
           <section className="menu-section" aria-labelledby="menu-heading">
             <div className="section-heading">
               <div>
-                <p className="eyebrow">Camden Street kitchen</p>
+                <label className="store-picker">
+                  <span className="eyebrow">Collecting from</span>
+                  <select
+                    value={store}
+                    onChange={(event) => setChosenStore(event.target.value)}
+                  >
+                    {(menu?.stores ?? []).map((name) => (
+                      <option key={name} value={name}>
+                        {name}
+                      </option>
+                    ))}
+                  </select>
+                </label>
                 <h1 id="menu-heading">What are you hungry for?</h1>
               </div>
               <p className="kitchen-status">
@@ -258,43 +364,10 @@ function OrderingExperience({ auth, api }) {
               </p>
             </div>
 
-            {menuError ? (
-              <div className="inline-error" role="alert">
-                <strong>Today&apos;s menu did not load.</strong>
-                <p>Try again in a moment. Your basket has not been changed.</p>
-              </div>
-            ) : !menu ? (
-              <MenuSkeleton />
-            ) : (
-              <ol className="menu-list">
-                {menu.items.map((item, index) => (
-                  <li key={item.sku} className="menu-row">
-                    <span className="menu-number" aria-hidden="true">
-                      {String(index + 1).padStart(2, "0")}
-                    </span>
-                    <div className="menu-copy">
-                      <div className="menu-title-line">
-                        <h2>{item.name}</h2>
-                        {item.size ? <span>{item.size}</span> : null}
-                      </div>
-                      <p>{item.description}</p>
-                      <small>{item.category}</small>
-                    </div>
-                    <strong className="menu-price">
-                      {formatEuro.format(item.price)}
-                    </strong>
-                    <button
-                      className="add-button"
-                      type="button"
-                      onClick={() => changeQuantity(item.sku, 1)}
-                      aria-label={`Add ${item.name}`}
-                    >
-                      <PlusIcon /> <span>Add</span>
-                    </button>
-                  </li>
-                ))}
-              </ol>
-            )}
+            <MenuList
+              menuState={menuState}
+              onAdd={(sku) => changeQuantity(sku, 1)}
+            />
           </section>
 
           <aside className="basket" aria-label="Your order">
@@ -309,8 +382,8 @@ function OrderingExperience({ auth, api }) {
             {basketItems.length === 0 ? (
               <div className="empty-basket">
                 <PizzaSliceIcon />
-                <p>Your basket is waiting.</p>
-                <span>Add something good from the menu.</span>
+                <p>Nothing on the ticket yet.</p>
+                <span>Add something from the counter.</span>
               </div>
             ) : (
               <ul className="basket-lines">
@@ -349,23 +422,22 @@ function OrderingExperience({ auth, api }) {
               <span>Total</span>
               <strong>{formatEuro.format(total)}</strong>
             </div>
-            <p className="authority-note">
-              Final prices are checked by the Pizza 42 API.
-            </p>
             <button
               className="button button-primary checkout-button"
               type="button"
-              disabled={itemCount === 0 || orderState.status === "submitting"}
+              disabled={
+                itemCount === 0 || !store || orderState.status === "submitting"
+              }
               onClick={placeOrder}
             >
               {orderState.status === "submitting"
-                ? "Placing order…"
+                ? "Sending to the kitchen…"
                 : `Place order · ${formatEuro.format(total)}`}
             </button>
             <div className="order-result" role="status" aria-live="polite">
               {orderState.status === "confirmed" ? (
                 <p>
-                  <CheckIcon /> Order {orderState.order.id} is in.
+                  <CheckIcon /> Order {orderState.order.id} is with the kitchen.
                 </p>
               ) : orderState.status === "error" &&
                 orderState.error?.code !== "email_not_verified" ? (
@@ -379,19 +451,22 @@ function OrderingExperience({ auth, api }) {
         </div>
 
         <OrderHistory orders={orderHistory} />
-        <TechnicalEvidence
-          auth={auth}
-          isVerified={isVerified}
-          orderHistory={orderHistory}
-          customerProfile={customerProfile}
-          marketingState={marketingState}
-        />
+
+        <Colophon>
+          <SessionDetails
+            auth={auth}
+            isVerified={isVerified}
+            orderHistory={orderHistory}
+            customerProfile={customerProfile}
+            marketingState={marketingState}
+          />
+        </Colophon>
       </div>
     </main>
   );
 }
 
-function VerificationNotice({ errorMessage, onRefresh }) {
+function VerificationNotice({ email, errorMessage, onRefresh }) {
   const [isChecking, setIsChecking] = useState(false);
 
   return (
@@ -403,11 +478,10 @@ function VerificationNotice({ errorMessage, onRefresh }) {
         <MailIcon />
       </div>
       <div className="notice-copy">
-        <p className="eyebrow">Email check</p>
-        <h2 id="verification-heading">Verify once, then order</h2>
+        <h2 id="verification-heading">Confirm your email to order</h2>
         <p>
           {errorMessage ??
-            "You can browse now. Open the verification email from Auth0 before you place your first order."}
+            `Browse all you like. Before your first order, open the link we sent to ${email ?? "your inbox"}.`}
         </p>
       </div>
       <button
@@ -423,24 +497,9 @@ function VerificationNotice({ errorMessage, onRefresh }) {
           }
         }}
       >
-        {isChecking ? "Checking…" : "I've verified my email"}
+        {isChecking ? "Checking…" : "I've confirmed it"}
       </button>
     </section>
-  );
-}
-
-function MenuSkeleton() {
-  return (
-    <div
-      className="menu-skeleton"
-      aria-live="polite"
-      aria-label="Loading today's menu"
-    >
-      <p>Loading today&apos;s menu…</p>
-      <span />
-      <span />
-      <span />
-    </div>
   );
 }
 
@@ -448,13 +507,12 @@ function OrderHistory({ orders }) {
   return (
     <section className="history-section" aria-labelledby="history-heading">
       <div className="history-intro">
-        <p className="eyebrow">Account history</p>
-        <h2 id="history-heading">Your recent orders</h2>
-        <p>Shown from your latest ID token. Sign in again to refresh it.</p>
+        <p className="eyebrow">Your account</p>
+        <h2 id="history-heading">Recent orders</h2>
       </div>
       {orders.length === 0 ? (
         <p className="history-empty">
-          Your first Pizza 42 order will appear here.
+          Nothing yet. Your first order will show up here.
         </p>
       ) : (
         <ol className="history-list">
@@ -473,7 +531,7 @@ function OrderHistory({ orders }) {
   );
 }
 
-function TechnicalEvidence({
+function SessionDetails({
   auth,
   isVerified,
   orderHistory,
@@ -481,69 +539,47 @@ function TechnicalEvidence({
   marketingState,
 }) {
   return (
-    <details className="evidence-drawer">
-      <summary>
-        <span>
-          <ShieldIcon /> Technical evidence
-        </span>
-        <small>Claims, trust boundaries and simulated marketing event</small>
-      </summary>
-      <div className="evidence-content">
-        <section aria-labelledby="id-token-heading">
-          <p className="eyebrow">Authentication context</p>
-          <h2 id="id-token-heading">ID token: client identity</h2>
-          <p>
-            Used by this browser to understand the signed-in customer. It is
-            never sent to the orders API as authorization.
-          </p>
-          <dl>
-            <div>
-              <dt>Subject</dt>
-              <dd>{auth.idTokenClaims?.sub ?? "Unavailable"}</dd>
-            </div>
-            <div>
-              <dt>Email verified</dt>
-              <dd>{isVerified ? "true" : "false"}</dd>
-            </div>
-            <div>
-              <dt>Order history entries</dt>
-              <dd>{orderHistory.length}</dd>
-            </div>
-          </dl>
-        </section>
-        <section aria-labelledby="access-token-heading">
-          <p className="eyebrow">Resource access</p>
-          <h2 id="access-token-heading">Access token: API authorization</h2>
-          <p>
-            The API validates signature, issuer, audience, expiry and scope
-            before applying the verified-email ordering rule.
-          </p>
-          <p className="token-safety">
-            Raw token values are intentionally hidden.
-          </p>
-        </section>
-        <section aria-labelledby="marketing-heading">
-          <p className="eyebrow">Demo adapter</p>
-          <h2 id="marketing-heading">Simulated Segment destination</h2>
-          <p>
-            Identity context shaped for a downstream tool. Login and checkout do
-            not depend on this destination.
+    <details className="session-details">
+      <summary>Session details</summary>
+      <div className="session-content">
+        <dl>
+          <div>
+            <dt>Account</dt>
+            <dd>{auth.idTokenClaims?.sub ?? "Unavailable"}</dd>
+          </div>
+          <div>
+            <dt>Email confirmed</dt>
+            <dd>{isVerified ? "Yes" : "Not yet"}</dd>
+          </div>
+          <div>
+            <dt>Orders on file</dt>
+            <dd>{orderHistory.length}</dd>
+          </div>
+        </dl>
+        <p className="session-note">
+          Sign-in is handled by Auth0. The ordering API checks the access token,
+          its scope and this account&apos;s confirmation state before the
+          kitchen sees anything. Token values are never shown here.
+        </p>
+        <div className="session-profile">
+          <p className="eyebrow">
+            Customer profile · simulated Segment destination
           </p>
           {marketingState.status === "unavailable" ? (
-            <p className="token-safety">
-              Simulation unavailable; ordering is unaffected.
+            <p className="session-note">
+              Destination unavailable. Ordering is unaffected.
             </p>
           ) : null}
-          <pre aria-label="Simulated customer profile">
+          <pre aria-label="Derived customer profile">
             {JSON.stringify(
               marketingState.status === "ready"
-                ? marketingState.event
+                ? marketingState.event.traits
                 : customerProfile,
               null,
               2,
             )}
           </pre>
-        </section>
+        </div>
       </div>
     </details>
   );
@@ -569,15 +605,6 @@ function CheckIcon() {
   return (
     <svg viewBox="0 0 20 20" aria-hidden="true">
       <path d="m4 10 4 4 8-9" />
-    </svg>
-  );
-}
-
-function ShieldIcon() {
-  return (
-    <svg viewBox="0 0 20 20" aria-hidden="true">
-      <path d="M10 2.5 16 5v4.4c0 3.8-2.4 6.4-6 8.1-3.6-1.7-6-4.3-6-8.1V5l6-2.5Z" />
-      <path d="m7 10 2 2 4-4" />
     </svg>
   );
 }

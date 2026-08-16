@@ -18,6 +18,7 @@ function createAuthenticatedAuth(overrides = {}) {
     isLoading: false,
     user: { name: "Maya", email: "maya@example.com" },
     idTokenClaims: {
+      sub: "auth0|customer-42",
       "https://pizza42.com/email_verified": true,
       "https://pizza42.com/orders": [],
     },
@@ -32,6 +33,7 @@ function createApi() {
   return {
     getMenu: vi.fn().mockResolvedValue({
       currency: "EUR",
+      stores: ["Dublin Camden Street", "Dublin Rathmines"],
       items: [
         {
           sku: "PIZ-MARG-L",
@@ -57,19 +59,56 @@ function createApi() {
 }
 
 describe("Pizza 42 ordering experience", () => {
-  it("gives a guest a direct path to Auth0 Universal Login", async () => {
+  it("sells pizza to a guest and routes them to Universal Login", async () => {
     const user = userEvent.setup();
     const auth = createGuestAuth();
 
-    render(<Pizza42App auth={auth} />);
+    render(<Pizza42App auth={auth} api={createApi()} />);
 
     expect(
-      screen.getByRole("heading", { name: /your friday night/i }),
+      screen.getByRole("heading", { name: /three pizzas/i }),
     ).toBeInTheDocument();
 
-    await user.click(screen.getByRole("button", { name: "Sign in to order" }));
+    await user.click(screen.getByRole("button", { name: "Start your order" }));
 
     expect(auth.loginWithRedirect).toHaveBeenCalledOnce();
+  });
+
+  it("shows a guest the real menu before they sign in", async () => {
+    const api = createApi();
+
+    render(<Pizza42App auth={createGuestAuth()} api={api} />);
+
+    expect(await screen.findByText("Margherita")).toBeInTheDocument();
+    expect(screen.getByText("€14.50")).toBeInTheDocument();
+    expect(api.getMenu).toHaveBeenCalledOnce();
+    expect(
+      screen.queryByRole("button", { name: "Add Margherita" }),
+    ).not.toBeInTheDocument();
+  });
+
+  it("keeps identity vocabulary out of the customer journey", async () => {
+    const { container } = render(
+      <Pizza42App auth={createGuestAuth()} api={createApi()} />,
+    );
+
+    await screen.findByText("Margherita");
+
+    // The colophon carries one deliberate, quiet build credit. Everything a
+    // hungry customer actually reads should be about pizza.
+    container.querySelector(".colophon").remove();
+    const customerCopy = container.textContent;
+
+    for (const jargon of [
+      "Auth0",
+      "password",
+      "token",
+      "identity",
+      "secured",
+      "API",
+    ]) {
+      expect(customerCopy.toLowerCase()).not.toContain(jargon.toLowerCase());
+    }
   });
 
   it("lets an authenticated customer add an API menu item to the basket", async () => {
@@ -89,10 +128,11 @@ describe("Pizza 42 ordering experience", () => {
     ).toBeEnabled();
   });
 
-  it("explains how an unverified customer can refresh their security state", async () => {
+  it("explains how an unverified customer can confirm their email", async () => {
     const user = userEvent.setup();
     const auth = createAuthenticatedAuth({
       idTokenClaims: {
+        sub: "auth0|customer-42",
         "https://pizza42.com/email_verified": false,
         "https://pizza42.com/orders": [],
       },
@@ -100,17 +140,16 @@ describe("Pizza 42 ordering experience", () => {
 
     render(<Pizza42App auth={auth} api={createApi()} />);
 
-    expect(
-      screen.getByRole("heading", { name: "Verify once, then order" }),
-    ).toBeInTheDocument();
+    const notice = screen
+      .getByRole("heading", { name: "Confirm your email to order" })
+      .closest("section");
+    expect(notice).toHaveTextContent(/maya@example\.com/);
 
-    await user.click(
-      screen.getByRole("button", { name: "I've verified my email" }),
-    );
+    await user.click(screen.getByRole("button", { name: "I've confirmed it" }));
 
     expect(auth.refreshVerification).toHaveBeenCalledOnce();
     expect(
-      screen.getByText("Email verified. You can place your order."),
+      screen.getByText("Email confirmed. You can place your order."),
     ).toBeInTheDocument();
   });
 
@@ -136,9 +175,32 @@ describe("Pizza 42 ordering experience", () => {
       "access-token",
     );
     expect(
-      await screen.findByText("Order ord_confirmed is in."),
+      await screen.findByText("Order ord_confirmed is with the kitchen."),
     ).toBeInTheDocument();
     expect(screen.getByText("0 items")).toBeInTheDocument();
+  });
+
+  it("sends the store the customer selected, not a hardcoded one", async () => {
+    const user = userEvent.setup();
+    const auth = createAuthenticatedAuth();
+    const api = createApi();
+
+    render(<Pizza42App auth={auth} api={api} />);
+
+    await user.selectOptions(
+      await screen.findByLabelText("Collecting from"),
+      "Dublin Rathmines",
+    );
+    await user.click(screen.getByRole("button", { name: "Add Margherita" }));
+    await user.click(screen.getByRole("button", { name: /place order/i }));
+
+    expect(api.createOrder).toHaveBeenCalledWith(
+      {
+        store: "Dublin Rathmines",
+        items: [{ sku: "PIZ-MARG-L", qty: 1 }],
+      },
+      "access-token",
+    );
   });
 
   it("turns an API verification failure into an inline recovery path", async () => {
@@ -160,7 +222,9 @@ describe("Pizza 42 ordering experience", () => {
     );
 
     expect(
-      await screen.findByRole("heading", { name: "Verify once, then order" }),
+      await screen.findByRole("heading", {
+        name: "Confirm your email to order",
+      }),
     ).toBeInTheDocument();
     expect(
       screen.getByText(
@@ -169,9 +233,10 @@ describe("Pizza 42 ordering experience", () => {
     ).toBeInTheDocument();
   });
 
-  it("renders order history from the ID token as read-only customer context", () => {
+  it("renders order history as plain customer context", async () => {
     const auth = createAuthenticatedAuth({
       idTokenClaims: {
+        sub: "auth0|customer-42",
         "https://pizza42.com/email_verified": true,
         "https://pizza42.com/orders": [
           {
@@ -188,45 +253,58 @@ describe("Pizza 42 ordering experience", () => {
     render(<Pizza42App auth={auth} api={createApi()} />);
 
     expect(
-      screen.getByRole("heading", { name: "Your recent orders" }),
+      screen.getByRole("heading", { name: "Recent orders" }),
     ).toBeInTheDocument();
     expect(screen.getByText("ord_history")).toBeInTheDocument();
     expect(screen.getByText("€21.40")).toBeInTheDocument();
-    expect(
-      screen.getByText(/shown from your latest ID token/i),
-    ).toBeInTheDocument();
   });
 
-  it("keeps token and marketing evidence behind an explicit inspector", async () => {
+  it("keeps identity detail behind a quiet, collapsed disclosure", async () => {
     const user = userEvent.setup();
     const auth = createAuthenticatedAuth({
       idTokenClaims: {
+        sub: "auth0|customer-42",
         "https://pizza42.com/email_verified": true,
         "https://pizza42.com/orders": [],
         "https://pizza42.com/customer_profile": {
           customer_segment: "Returning Regular",
-          order_count: 7,
-          favourite_item: "Margherita",
+          favourite_store: "Dublin Camden Street",
+          last_item_ordered: "Margherita",
         },
       },
     });
 
     render(<Pizza42App auth={auth} api={createApi()} />);
 
-    const summary = screen.getByText("Technical evidence");
+    const summary = screen.getByText("Session details");
     expect(summary.closest("details")).not.toHaveAttribute("open");
 
     await user.click(summary);
 
     expect(summary.closest("details")).toHaveAttribute("open");
-    expect(screen.getByText("ID token: client identity")).toBeInTheDocument();
-    expect(
-      screen.getByText("Access token: API authorization"),
-    ).toBeInTheDocument();
-    expect(
-      screen.getByText("Simulated Segment destination"),
-    ).toBeInTheDocument();
-    expect(screen.queryByText("customer-access-token")).not.toBeInTheDocument();
+    expect(screen.getByText("auth0|customer-42")).toBeInTheDocument();
+    expect(screen.queryByText("access-token")).not.toBeInTheDocument();
+  });
+
+  it("surfaces the marketing traits the customer briefing asked for", async () => {
+    const user = userEvent.setup();
+    const api = createApi();
+    api.identifyCustomer.mockResolvedValue({
+      type: "identify",
+      userId: "auth0|customer-42",
+      traits: {
+        favourite_store: "Dublin Camden Street",
+        last_item_ordered: "Margherita",
+      },
+    });
+
+    render(<Pizza42App auth={createAuthenticatedAuth()} api={api} />);
+
+    await user.click(await screen.findByText("Session details"));
+
+    const profile = await screen.findByLabelText("Derived customer profile");
+    expect(profile.textContent).toContain("favourite_store");
+    expect(profile.textContent).toContain("last_item_ordered");
   });
 
   it("keeps ordering available when the optional marketing simulation fails", async () => {
@@ -245,10 +323,10 @@ describe("Pizza 42 ordering experience", () => {
     expect(
       screen.getByRole("button", { name: /place order.*€14\.50/i }),
     ).toBeEnabled();
+
+    await user.click(screen.getByText("Session details"));
     expect(
-      await screen.findByText(
-        /simulation unavailable; ordering is unaffected/i,
-      ),
+      await screen.findByText(/destination unavailable\. ordering is/i),
     ).toBeInTheDocument();
   });
 });
