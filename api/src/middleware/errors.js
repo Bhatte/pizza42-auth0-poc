@@ -1,6 +1,7 @@
 import { OrderInputError } from "../domain/orders.js";
+import { ManagementApiError } from "../services/management.js";
 
-export function errorHandler(error, _request, response, _next) {
+export function errorHandler(error, request, response, _next) {
   if (error.headers) {
     response.set(error.headers);
   }
@@ -44,6 +45,21 @@ export function errorHandler(error, _request, response, _next) {
     return response.status(400).json({
       error: "invalid_order",
       message: "One or more order items are invalid.",
+    });
+  }
+
+  // Everything below is unexpected. Log the cause without tokens, headers or
+  // request bodies so an operator can tell "Auth0 said no" from "we broke".
+  console.error("[pizza42]", request.method, request.path, error.name, {
+    upstreamStatus: error.upstreamStatus,
+    operation: error.operation,
+  });
+
+  if (error instanceof ManagementApiError) {
+    return response.status(502).json({
+      error: "identity_store_unavailable",
+      message: "We could not reach your Pizza 42 profile right now.",
+      remediation: "Please try again in a moment.",
     });
   }
 

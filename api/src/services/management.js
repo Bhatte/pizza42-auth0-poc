@@ -1,3 +1,12 @@
+export class ManagementApiError extends Error {
+  constructor(operation, status) {
+    super(`Auth0 Management API ${operation} failed with status ${status}`);
+    this.name = "ManagementApiError";
+    this.operation = operation;
+    this.upstreamStatus = status;
+  }
+}
+
 export function createManagementOrdersRepository({
   config,
   fetch: fetchRequest = globalThis.fetch,
@@ -27,7 +36,7 @@ export function createManagementOrdersRepository({
     );
 
     if (!response.ok) {
-      throw new Error("Unable to obtain Auth0 Management API token");
+      throw new ManagementApiError("token request", response.status);
     }
 
     const payload = await response.json();
@@ -49,7 +58,7 @@ export function createManagementOrdersRepository({
     );
 
     if (!response.ok) {
-      throw new Error("Unable to read Auth0 user profile");
+      throw new ManagementApiError("user read", response.status);
     }
 
     return response.json();
@@ -83,7 +92,7 @@ export function createManagementOrdersRepository({
       );
 
       if (!response.ok) {
-        throw new Error("Unable to update Auth0 user profile");
+        throw new ManagementApiError("app_metadata update", response.status);
       }
 
       return order;

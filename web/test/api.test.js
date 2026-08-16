@@ -77,6 +77,59 @@ describe("Pizza 42 API client", () => {
     expect(fetch).toHaveBeenCalledWith("https://api.pizza42.example/api/menu");
   });
 
+  it.each([
+    [
+      "a rate-limit page",
+      429,
+      "Too many requests, please try again later.",
+      "text/html",
+      "The kitchen is busy right now. Try again in a moment.",
+    ],
+    [
+      "a gateway error page",
+      502,
+      "<html><body>502 Bad Gateway</body></html>",
+      "text/html",
+      "We could not reach the kitchen. Your basket has not been changed.",
+    ],
+    [
+      "an empty body",
+      500,
+      "",
+      "application/json",
+      "Something went wrong on our side. Your basket has not been changed.",
+    ],
+  ])(
+    "turns %s into a customer-readable error instead of a parse failure",
+    async (_scenario, status, body, contentType, expectedMessage) => {
+      const fetch = vi.fn().mockResolvedValue(
+        new Response(body, {
+          status,
+          headers: { "content-type": contentType },
+        }),
+      );
+      const api = createApiClient({
+        baseUrl: "https://api.pizza42.example",
+        fetch,
+      });
+
+      const error = await api
+        .createOrder(
+          {
+            store: "Dublin Camden Street",
+            items: [{ sku: "PIZ-MARG-L", qty: 1 }],
+          },
+          "access-token",
+        )
+        .catch((reason) => reason);
+
+      expect(error).toBeInstanceOf(ApiError);
+      expect(error.message).toBe(expectedMessage);
+      expect(error.message).not.toMatch(/JSON/i);
+      expect(error.status).toBe(status);
+    },
+  );
+
   it("preserves safe API remediation details in a typed error", async () => {
     const fetch = vi.fn().mockResolvedValue(
       new Response(

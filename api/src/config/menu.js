@@ -1,3 +1,9 @@
+export const stores = Object.freeze([
+  "Dublin Camden Street",
+  "Dublin Rathmines",
+  "Dublin Smithfield",
+]);
+
 export const menu = Object.freeze({
   "PIZ-MARG-L": Object.freeze({
     sku: "PIZ-MARG-L",
@@ -27,6 +33,7 @@ export const menu = Object.freeze({
 export function getPublicMenu() {
   return {
     currency: "EUR",
+    stores: [...stores],
     items: Object.values(menu),
   };
 }

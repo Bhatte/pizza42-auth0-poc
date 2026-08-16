@@ -15,19 +15,29 @@ export function createApp({
   ordersRepository,
   marketingEventsRepository = createInMemoryMarketingEventsRepository(),
   allowedOrigins = [],
+  trustProxy = 1,
 } = {}) {
   const app = express();
   const authMiddleware = createAuthMiddleware(authConfig);
 
   app.disable("x-powered-by");
+  // One proxy hop in front of the API (Vercel). Without this every request
+  // carries the proxy address, so all customers would share a single bucket.
+  app.set("trust proxy", trustProxy);
   app.use(helmet());
   app.use(
     "/api",
     rateLimit({
       windowMs: 60_000,
-      limit: 120,
+      limit: 600,
       standardHeaders: "draft-8",
       legacyHeaders: false,
+      handler(_request, response) {
+        response.status(429).json({
+          error: "rate_limited",
+          message: "Too many requests. Please try again shortly.",
+        });
+      },
     }),
   );
   app.use(

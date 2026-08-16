@@ -2,13 +2,11 @@ import { randomUUID } from "node:crypto";
 
 import { z } from "zod";
 
+import { stores } from "../config/menu.js";
+
 const requestedOrderSchema = z
   .object({
-    store: z.enum([
-      "Dublin Camden Street",
-      "Dublin Rathmines",
-      "Dublin Smithfield",
-    ]),
+    store: z.enum(stores),
     items: z
       .array(
         z
@@ -43,11 +41,14 @@ export function buildOrder(requestedOrder, catalogue) {
   }
 
   const items = parsedOrder.data.items.map(({ sku, qty }) => {
-    const menuItem = catalogue[sku];
-
-    if (!menuItem) {
+    // Own-property check only. A bare `catalogue[sku]` resolves inherited
+    // Object.prototype members, so SKUs like "toString" or "__proto__" would
+    // pass the unknown-item guard and produce an order with a NaN total.
+    if (!Object.hasOwn(catalogue, sku)) {
       throw new OrderInputError("unknown_sku");
     }
+
+    const menuItem = catalogue[sku];
 
     const lineTotal = money(menuItem.price * qty);
 

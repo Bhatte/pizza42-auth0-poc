@@ -62,6 +62,7 @@ describe("GET /api/menu", () => {
     expect(response.status).toBe(200);
     expect(response.body).toEqual({
       currency: "EUR",
+      stores: ["Dublin Camden Street", "Dublin Rathmines", "Dublin Smithfield"],
       items: [
         {
           sku: "PIZ-MARG-L",
@@ -273,6 +274,58 @@ describe("POST /api/orders", () => {
       error: "invalid_order",
       message: "One or more order items are invalid.",
     });
+  });
+
+  it.each([["__proto__"], ["constructor"], ["toString"], ["valueOf"]])(
+    "rejects the inherited Object.prototype member %s as a SKU",
+    async (sku) => {
+      const accessToken = await issuer.issueToken({
+        scope: "create:orders",
+        claims: { "https://pizza42.com/email_verified": true },
+      });
+      const ordersRepository = {
+        appendForUser: async (_subject, order) => order,
+      };
+
+      const response = await request(
+        createApp({ authConfig, ordersRepository }),
+      )
+        .post("/api/orders")
+        .set("authorization", `Bearer ${accessToken}`)
+        .send({ store: "Dublin Camden Street", items: [{ sku, qty: 1 }] });
+
+      expect(response.status).toBe(400);
+      expect(response.body).toEqual({
+        error: "unknown_sku",
+        message: "The requested menu item is not available.",
+      });
+    },
+  );
+
+  it("never produces an order without an authoritative total", async () => {
+    const accessToken = await issuer.issueToken({
+      scope: "create:orders",
+      claims: { "https://pizza42.com/email_verified": true },
+    });
+    const stored = [];
+    const ordersRepository = {
+      appendForUser: async (_subject, order) => {
+        stored.push(order);
+        return order;
+      },
+    };
+    const app = createApp({ authConfig, ordersRepository });
+
+    for (const sku of ["toString", "__proto__", "PIZ-MARG-L"]) {
+      await request(app)
+        .post("/api/orders")
+        .set("authorization", `Bearer ${accessToken}`)
+        .send({ store: "Dublin Camden Street", items: [{ sku, qty: 2 }] });
+    }
+
+    expect(stored).toHaveLength(1);
+    expect(stored[0].total).toBe(29);
+    expect(stored.every((order) => Number.isFinite(order.total))).toBe(true);
   });
 
   it("rejects quantities outside the bounded order contract", async () => {
