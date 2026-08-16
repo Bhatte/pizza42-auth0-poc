@@ -40,7 +40,13 @@ The orders service uses a machine-to-machine credential with `read:users` and `u
 
 ## Marketing path
 
-The POC will expose a protected, clearly labelled simulation of the customer context sent to a marketing tool. The production design is asynchronous: Auth0 login signals and Pizza 42 domain events flow through an event bus or supported log stream, then into Segment or Braze. Login and checkout must continue if those systems are unavailable.
+The POC exposes `POST /api/marketing/identify` and `GET /api/marketing/events` behind the same access-token validation and `read:orders` permission. The server ignores browser-supplied traits, reads the current token subject's order history, derives a Segment-shaped identify event, and keeps a bounded in-memory demonstration history. Reads are filtered by the access-token subject.
+
+The SPA invokes the simulation independently of menu loading and checkout and treats failure as non-blocking. The production design is asynchronous: Pizza 42 domain events flow through an event bus or supported Auth0 log stream, then into Segment or Braze. Login and checkout continue if those systems are unavailable.
+
+## HTTP boundary controls
+
+The API applies security headers, an exact CORS origin allowlist, a 16 KiB JSON body limit, process-local request limiting, strict schemas, and safe JSON errors. These controls reduce accidental exposure and common abuse but do not replace edge rate limiting, monitoring, or a web application firewall in production.
 
 ## Production migration
 
