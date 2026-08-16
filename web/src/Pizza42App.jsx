@@ -147,56 +147,63 @@ function GuestExperience({ auth, api }) {
       </header>
 
       <section className="guest-hero" aria-labelledby="welcome-heading">
-        <div className="hero-copy">
-          <p className="eyebrow">Camden Street, Dublin 2</p>
-          <h1 id="welcome-heading">
-            Three pizzas.
-            <span> Done properly.</span>
-          </h1>
-          <p className="hero-intro">
-            Dough proved for two days, San Marzano tomatoes, and an oven hot
-            enough to finish a base in ninety seconds. Twenty minutes from your
-            order to the box.
-          </p>
-          <div className="hero-actions">
-            <button
-              className="button button-primary"
-              type="button"
-              onClick={() => auth.loginWithRedirect()}
-            >
-              Start your order <ArrowIcon />
-            </button>
-            <button
-              className="button button-secondary"
-              type="button"
-              onClick={() =>
-                auth.loginWithRedirect({
-                  authorizationParams: { screen_hint: "signup" },
-                })
-              }
-            >
-              Create an account
-            </button>
+        <div className="hero-inner">
+          <div className="hero-copy">
+            <p className="eyebrow">Camden Street · Dublin 2</p>
+            <h1 id="welcome-heading">
+              Forty-two seconds <em>in a very hot oven.</em>
+            </h1>
+            <p className="hero-intro">
+              Dough proved for two days, San Marzano tomatoes, and a deck that
+              runs at 450°C. We make three pizzas. We have got very good at
+              those three.
+            </p>
+            <div className="hero-actions">
+              <button
+                className="button button-primary"
+                type="button"
+                onClick={() => auth.loginWithRedirect()}
+              >
+                Start your order <ArrowIcon />
+              </button>
+              <button
+                className="button button-secondary"
+                type="button"
+                onClick={() =>
+                  auth.loginWithRedirect({
+                    authorizationParams: { screen_hint: "signup" },
+                  })
+                }
+              >
+                Create an account
+              </button>
+            </div>
           </div>
-        </div>
 
-        <div className="hero-scene" aria-hidden="true">
-          <div className="pizza-illustration">
-            <span className="topping topping-one" />
-            <span className="topping topping-two" />
-            <span className="topping topping-three" />
-            <span className="basil basil-one" />
-            <span className="basil basil-two" />
+          <div className="hero-scene" aria-hidden="true">
+            <div className="order-ticket">
+              <div className="ticket-head">
+                <span>Camden St</span>
+                <span>19:42</span>
+              </div>
+              <p className="ticket-number">42</p>
+              <p className="ticket-label">Ticket · on the pass</p>
+              <ul className="ticket-lines">
+                <li>
+                  <span>Margherita, large</span>
+                  <span>14.50</span>
+                </li>
+                <li>
+                  <span>Garlic bread</span>
+                  <span>4.50</span>
+                </li>
+              </ul>
+              <div className="ticket-total">
+                <span>To pay</span>
+                <b>€19.00</b>
+              </div>
+            </div>
           </div>
-          <div className="order-ticket">
-            <p>CAMDEN ST · 19:42</p>
-            <strong>TABLE ORDER</strong>
-            <span>Margherita · Large</span>
-            <span>Garlic bread</span>
-            <i />
-            <b>€19.00</b>
-          </div>
-          <p className="scene-caption">Out of the oven at 20:04</p>
         </div>
       </section>
 

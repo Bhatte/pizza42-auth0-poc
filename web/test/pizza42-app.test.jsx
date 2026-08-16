@@ -66,7 +66,7 @@ describe("Pizza 42 ordering experience", () => {
     render(<Pizza42App auth={auth} api={createApi()} />);
 
     expect(
-      screen.getByRole("heading", { name: /three pizzas/i }),
+      screen.getByRole("heading", { name: /forty-two seconds/i }),
     ).toBeInTheDocument();
 
     await user.click(screen.getByRole("button", { name: "Start your order" }));

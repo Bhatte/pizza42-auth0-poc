@@ -1,9 +1,9 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 160 160" width="160" height="160" role="img" aria-label="Pizza 42">
-  <circle cx="80" cy="80" r="76" fill="#bf4925" />
+  <circle cx="80" cy="80" r="76" fill="#d23800" />
   <text
     x="80"
     y="80"
-    fill="#faf4eb"
+    fill="#f1f5f1"
     font-family="Helvetica Neue, Helvetica, Arial, sans-serif"
     font-size="76"
     font-weight="800"
