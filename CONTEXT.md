@@ -29,3 +29,14 @@
 - Maximum line quantity: `20`
 
 Changes to these contracts require an explicit decision record and updates to the requirements matrix, API tests and tenant documentation.
+
+### Why the namespace is a domain nobody dereferences
+
+Neither `https://pizza42.com/` nor `https://api.pizza42.com` is ever fetched, resolved or verified by anything. Both are identifiers, not locations.
+
+- **Claim namespace.** OIDC reserves the unprefixed claim space, so Auth0 requires custom claims to be namespaced as a URI to prevent collisions with standard claims. Auth0's documentation is explicit that the namespace "does not have to point to an actual resource. It is only used as an identifier; it will not be called." Auth0 additionally strips any custom claim that is _not_ namespaced, so removing the prefix would silently drop `email_verified`, `orders` and `customer_profile` from the tokens.
+- **API audience.** An Auth0 API identifier is an opaque string that is conventionally, but not necessarily, URI-shaped. It is compared for equality against the `aud` claim and never requested over the network.
+
+`pizza42.com` is the fictional customer's domain from the exercise brief, which is the appropriate choice here. Auth0 recommends a domain you control purely so that two organisations do not pick the same namespace; that is a uniqueness concern, not a security or connectivity one.
+
+Changing either value is a coordinated breaking change, not a rename. The namespace appears in the Post-Login Action, `api/src/config/contracts.js`, the SPA claim constants and every claim-bearing test; the audience additionally exists as a tenant API identifier, so changing it means creating a new API in Auth0 and reissuing every token. Do not change either to make the string "look real".

@@ -8,6 +8,24 @@ const EMAIL_VERIFIED_CLAIM = "https://pizza42.com/email_verified";
 const ORDERS_CLAIM = "https://pizza42.com/orders";
 const CUSTOMER_PROFILE_CLAIM = "https://pizza42.com/customer_profile";
 
+// The menu endpoint returns what the kitchen sells, not how it photographs.
+// Art direction is a storefront concern, so the pairing lives here and degrades
+// to a typographic tile when a SKU we have never shot turns up.
+const DISH_PHOTOGRAPHY = {
+  "PIZ-MARG-L": {
+    file: "margherita",
+    alt: "Margherita straight off the stone, blistered crust and torn basil",
+  },
+  "PIZ-VEG-L": {
+    file: "garden-veg",
+    alt: "Garden Veg cut into slices, peppers and mushroom under melted mozzarella",
+  },
+  "SID-GARL": {
+    file: "garlic-bread",
+    alt: "Garlic bread on a dark plate, butter still pooling in the crumb",
+  },
+};
+
 function useMenu(api) {
   const [state, setState] = useState({ status: "loading" });
 
@@ -37,8 +55,37 @@ function Brand() {
       <span className="brand-mark" aria-hidden="true">
         42
       </span>
-      <span className="brand-name">Pizza 42</span>
+      <span className="brand-lockup">
+        <span className="brand-name">Pizza 42</span>
+        <span className="brand-place">Wood-fired · Dublin</span>
+      </span>
     </a>
+  );
+}
+
+function DishPhoto({ sku, sizes, eager = false }) {
+  const shot = DISH_PHOTOGRAPHY[sku];
+
+  if (!shot) {
+    return (
+      <span className="dish-photo is-missing" aria-hidden="true">
+        <PizzaSliceIcon />
+      </span>
+    );
+  }
+
+  return (
+    <img
+      className="dish-photo"
+      src={`/img/${shot.file}-900.jpg`}
+      srcSet={`/img/${shot.file}-520.jpg 520w, /img/${shot.file}-900.jpg 900w`}
+      sizes={sizes}
+      width="900"
+      height="675"
+      alt={shot.alt}
+      loading={eager ? "eager" : "lazy"}
+      decoding="async"
+    />
   );
 }
 
@@ -46,13 +93,13 @@ function Colophon({ children }) {
   return (
     <footer className="colophon">
       <div className="colophon-shops">
-        <p>Camden Street · Rathmines · Smithfield</p>
-        <p>Kitchen open until 23:00</p>
+        <p>Camden Street / Rathmines / Smithfield</p>
+        <p>Collection until 23:00</p>
       </div>
       {children}
       <p className="colophon-note">
-        A build for the Auth0 technical challenge. No payment is taken and no
-        pizza leaves the kitchen.
+        Pizza 42 sign-in proof of concept. No payment is taken and no order is
+        sent to a kitchen.
       </p>
     </footer>
   );
@@ -63,14 +110,14 @@ function LoadingScreen() {
     <main className="loading-screen" aria-busy="true">
       <Brand />
       <div className="loading-copy">
-        <span className="loading-dot" aria-hidden="true" />
+        <span className="loading-flame" aria-hidden="true" />
         <p>Lighting the oven…</p>
       </div>
     </main>
   );
 }
 
-function MenuList({ menuState, onAdd }) {
+function MenuList({ menuState, onAdd, layout = "showcase" }) {
   if (menuState.status === "error") {
     return (
       <div className="inline-error" role="alert">
@@ -83,11 +130,10 @@ function MenuList({ menuState, onAdd }) {
   if (menuState.status === "loading") {
     return (
       <div
-        className="menu-skeleton"
+        className={`menu-skeleton is-${layout}`}
         aria-live="polite"
         aria-label="Loading tonight's menu"
       >
-        <p>Checking what&apos;s on tonight…</p>
         <span />
         <span />
         <span />
@@ -96,22 +142,40 @@ function MenuList({ menuState, onAdd }) {
   }
 
   return (
-    <ol className="menu-list">
+    <ul className={`menu-list is-${layout}`}>
       {menuState.menu.items.map((item, index) => (
-        <li key={item.sku} className="menu-row">
-          <span className="menu-number" aria-hidden="true">
-            {String(index + 1).padStart(2, "0")}
-          </span>
-          <div className="menu-copy">
-            <div className="menu-title-line">
-              <h2>{item.name}</h2>
-              {item.size ? <span>{item.size}</span> : null}
-            </div>
-            <p>{item.description}</p>
+        <li key={item.sku} className="dish">
+          <div className="dish-frame">
+            <DishPhoto
+              sku={item.sku}
+              name={item.name}
+              sizes={
+                layout === "showcase"
+                  ? "(max-width: 46rem) 92vw, (max-width: 72rem) 44vw, 24rem"
+                  : "6rem"
+              }
+              eager={layout === "showcase" && index === 0}
+            />
+            {layout === "showcase" ? (
+              <strong className="dish-price">
+                {formatEuro.format(item.price)}
+              </strong>
+            ) : null}
           </div>
-          <strong className="menu-price">
-            {formatEuro.format(item.price)}
-          </strong>
+
+          <div className="dish-body">
+            <h3 className="dish-name">
+              {item.name}
+              {item.size ? <span>{item.size}</span> : null}
+            </h3>
+            <p className="dish-note">{item.description}</p>
+            {layout === "order" ? (
+              <strong className="dish-line-price">
+                {formatEuro.format(item.price)}
+              </strong>
+            ) : null}
+          </div>
+
           {onAdd ? (
             <button
               className="add-button"
@@ -121,12 +185,10 @@ function MenuList({ menuState, onAdd }) {
             >
               <PlusIcon /> <span>Add</span>
             </button>
-          ) : (
-            <span className="menu-spacer" aria-hidden="true" />
-          )}
+          ) : null}
         </li>
       ))}
-    </ol>
+    </ul>
   );
 }
 
@@ -146,78 +208,69 @@ function GuestExperience({ auth, api }) {
         </button>
       </header>
 
-      <section className="guest-hero" aria-labelledby="welcome-heading">
-        <div className="hero-inner">
-          <div className="hero-copy">
-            <p className="eyebrow">Camden Street · Dublin 2</p>
-            <h1 id="welcome-heading">
-              Forty-two seconds <em>in a very hot oven.</em>
-            </h1>
-            <p className="hero-intro">
-              Dough proved for two days, San Marzano tomatoes, and a deck that
-              runs at 450°C. We make three pizzas. We have got very good at
-              those three.
-            </p>
-            <div className="hero-actions">
-              <button
-                className="button button-primary"
-                type="button"
-                onClick={() => auth.loginWithRedirect()}
-              >
-                Start your order <ArrowIcon />
-              </button>
-              <button
-                className="button button-secondary"
-                type="button"
-                onClick={() =>
-                  auth.loginWithRedirect({
-                    authorizationParams: { screen_hint: "signup" },
-                  })
-                }
-              >
-                Create an account
-              </button>
-            </div>
-          </div>
+      <section className="hero" aria-labelledby="welcome-heading">
+        <picture className="hero-photo">
+          <img
+            src="/img/hero-1100.jpg"
+            srcSet="/img/hero-700.jpg 700w, /img/hero-1100.jpg 1100w, /img/hero-1800.jpg 1800w"
+            sizes="100vw"
+            width="1800"
+            height="1012"
+            alt="A pizza on the stone at the mouth of the wood-fired oven, flame running up the wall beside it"
+            fetchPriority="high"
+            decoding="async"
+          />
+        </picture>
+        <span className="hero-scrim" aria-hidden="true" />
+        <span className="hero-flicker" aria-hidden="true" />
 
-          <div className="hero-scene" aria-hidden="true">
-            <div className="order-ticket">
-              <div className="ticket-head">
-                <span>Camden St</span>
-                <span>19:42</span>
-              </div>
-              <p className="ticket-number">42</p>
-              <p className="ticket-label">Ticket · on the pass</p>
-              <ul className="ticket-lines">
-                <li>
-                  <span>Margherita, large</span>
-                  <span>14.50</span>
-                </li>
-                <li>
-                  <span>Garlic bread</span>
-                  <span>4.50</span>
-                </li>
-              </ul>
-              <div className="ticket-total">
-                <span>To pay</span>
-                <b>€19.00</b>
-              </div>
-            </div>
+        <div className="hero-copy">
+          <p className="hero-open">
+            <span aria-hidden="true" /> Open now, collection tonight
+          </p>
+          <h1 id="welcome-heading">Forty-two seconds over live fire.</h1>
+          <p className="hero-intro">
+            Two-day dough, San Marzano tomatoes and a stone floor held at 450°C.
+            Three things on the menu, each one made properly.
+          </p>
+          <div className="hero-actions">
+            <button
+              className="button button-primary"
+              type="button"
+              onClick={() => auth.loginWithRedirect()}
+            >
+              Start your order <ArrowIcon />
+            </button>
+            <button
+              className="button button-secondary"
+              type="button"
+              onClick={() =>
+                auth.loginWithRedirect({
+                  authorizationParams: { screen_hint: "signup" },
+                })
+              }
+            >
+              Create an account
+            </button>
           </div>
         </div>
       </section>
 
+      <div className="service-rail">
+        <span>Fired to order</span>
+        <span>450°C stone</span>
+        <span>Two-day dough</span>
+        <span>Collection only</span>
+      </div>
+
       <section className="guest-menu" aria-labelledby="guest-menu-heading">
         <div className="section-heading">
-          <div>
-            <p className="eyebrow">Tonight</p>
-            <h2 id="guest-menu-heading">On the counter</h2>
-          </div>
+          <h2 id="guest-menu-heading">On tonight</h2>
           <p className="kitchen-status">
             <span aria-hidden="true" /> Taking orders
           </p>
         </div>
-        <MenuList menuState={menuState} />
+        <MenuList menuState={menuState} layout="showcase" />
       </section>
 
       <Colophon />
@@ -308,7 +361,7 @@ function OrderingExperience({ auth, api }) {
           <Brand />
           <div className="account-actions">
             {isVerified ? null : (
-              <span className="verification-pill needs-verification">
+              <span className="verification-pill">
                 <MailIcon />
                 Email not confirmed
               </span>
@@ -350,47 +403,40 @@ function OrderingExperience({ auth, api }) {
         <div className="ordering-grid">
           <section className="menu-section" aria-labelledby="menu-heading">
             <div className="section-heading">
-              <div>
-                <label className="store-picker">
-                  <span className="eyebrow">Collecting from</span>
-                  <select
-                    value={store}
-                    onChange={(event) => setChosenStore(event.target.value)}
-                  >
-                    {(menu?.stores ?? []).map((name) => (
-                      <option key={name} value={name}>
-                        {name}
-                      </option>
-                    ))}
-                  </select>
-                </label>
-                <h1 id="menu-heading">What are you hungry for?</h1>
-              </div>
-              <p className="kitchen-status">
-                <span aria-hidden="true" /> Taking orders
-              </p>
+              <h1 id="menu-heading">Tonight&apos;s order</h1>
+              <label className="store-picker">
+                <span>Collecting from</span>
+                <select
+                  value={store}
+                  onChange={(event) => setChosenStore(event.target.value)}
+                >
+                  {(menu?.stores ?? []).map((name) => (
+                    <option key={name} value={name}>
+                      {name}
+                    </option>
+                  ))}
+                </select>
+              </label>
             </div>
 
             <MenuList
               menuState={menuState}
+              layout="order"
               onAdd={(sku) => changeQuantity(sku, 1)}
             />
           </section>
 
           <aside className="basket" aria-label="Your order">
             <div className="basket-heading">
-              <div>
-                <p className="eyebrow">Order ticket</p>
-                <h2>Your order</h2>
-              </div>
+              <h2>Your order</h2>
               <span>{itemCount === 1 ? "1 item" : `${itemCount} items`}</span>
             </div>
 
             {basketItems.length === 0 ? (
               <div className="empty-basket">
                 <PizzaSliceIcon />
-                <p>Nothing on the ticket yet.</p>
-                <span>Add something from the counter.</span>
+                <p>Nothing on the docket yet.</p>
+                <span>Add something from tonight&apos;s menu.</span>
               </div>
             ) : (
               <ul className="basket-lines">
@@ -513,10 +559,7 @@ function VerificationNotice({ email, errorMessage, onRefresh }) {
 function OrderHistory({ orders }) {
   return (
     <section className="history-section" aria-labelledby="history-heading">
-      <div className="history-intro">
-        <p className="eyebrow">Your account</p>
-        <h2 id="history-heading">Recent orders</h2>
-      </div>
+      <h2 id="history-heading">Recent orders</h2>
       {orders.length === 0 ? (
         <p className="history-empty">
           Nothing yet. Your first order will show up here.
@@ -569,8 +612,8 @@ function SessionDetails({
           kitchen sees anything. Token values are never shown here.
         </p>
         <div className="session-profile">
-          <p className="eyebrow">
-            Customer profile · simulated Segment destination
+          <p className="session-profile-label">
+            Customer profile / simulated Segment destination
           </p>
           {marketingState.status === "unavailable" ? (
             <p className="session-note">

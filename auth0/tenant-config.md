@@ -17,6 +17,7 @@ Tenant: `tejasbhat.eu.auth0.com` (EU region)
 | RBAC (`enforce_policies`) | **off**                        |
 | Token dialect             | `access_token`                 |
 | Allow offline access      | on                             |
+| Skip first-party consent  | off                            |
 
 RBAC is deliberately off. The use case has one API capability and no role
 hierarchy, so OAuth scopes alone express "this token may place an order",
@@ -29,17 +30,21 @@ failure mode without adding customer value.
 Offline access is on because the SPA requests `offline_access` for refresh
 tokens.
 
+First-party consent skipping is currently off. Auth0 therefore displays the
+API consent prompt in hosted environments. `localhost` displays consent even
+when this option is enabled because it is not a verifiable first-party origin.
+
 ## 2. Pizza 42 Web (single-page application)
 
-| Setting               | Value                                                    |
-| --------------------- | -------------------------------------------------------- |
-| Client ID             | `9gEcvJTrO7n76XSSCIRJ48LAYQBXQnYf`                       |
-| Type                  | Single Page Application                                  |
-| Grant types           | `authorization_code`, `refresh_token`                    |
-| Token endpoint auth   | `none` — a public client holds no secret                 |
-| Allowed Callback URLs | `http://localhost:5173`, `https://pizza42.tejasbhat.com` |
-| Allowed Logout URLs   | `http://localhost:5173`, `https://pizza42.tejasbhat.com` |
-| Allowed Web Origins   | `http://localhost:5173`, `https://pizza42.tejasbhat.com` |
+| Setting               | Value                                                                                      |
+| --------------------- | ------------------------------------------------------------------------------------------ |
+| Client ID             | `9gEcvJTrO7n76XSSCIRJ48LAYQBXQnYf`                                                         |
+| Type                  | Single Page Application                                                                    |
+| Grant types           | `authorization_code`, `refresh_token`                                                      |
+| Token endpoint auth   | `none` — a public client holds no secret                                                   |
+| Allowed Callback URLs | `http://localhost:5173`, `https://pizza42.tejasbhat.com`, `https://pizza42-web.vercel.app` |
+| Allowed Logout URLs   | `http://localhost:5173`, `https://pizza42.tejasbhat.com`, `https://pizza42-web.vercel.app` |
+| Allowed Web Origins   | `http://localhost:5173`, `https://pizza42.tejasbhat.com`, `https://pizza42-web.vercel.app` |
 
 Exact origins only; no wildcards.
 
@@ -59,6 +64,9 @@ Absolute lifetime 30 days, idle lifetime 7 days.
 | `Username-Password-Authentication` | `auth0`         | yes                      |
 | `google-oauth2`                    | `google-oauth2` | yes                      |
 
+The Google connection uses Pizza 42-owned Google OAuth credentials rather than
+Auth0 development keys.
+
 A connection that exists but is not enabled for the application will fail
 login with no useful error, so both are verified through
 `GET /api/v2/connections/{id}/clients` rather than assumed.
@@ -77,6 +85,9 @@ email. See [../docs/design-decisions.md](../docs/design-decisions.md).
 
 Name: `Pizza 42 Post-Login Claims`, runtime `node22`, bound to the `post-login`
 trigger. Source of truth is [actions/post-login.js](actions/post-login.js).
+
+Deployed version 2 uses trigger contract `post-login` v3. The deployed source
+matches the repository source.
 
 The Action:
 
@@ -134,7 +145,57 @@ curl -s -X POST https://tejasbhat.eu.auth0.com/oauth/token \
 | Suspicious IP throttling    | on    |
 | Breached password detection | on    |
 
-## 8. Recreating this tenant
+## 8. Universal Login branding
+
+Universal Login is rendered by Auth0 from tenant settings, so nothing in this
+repository changes it. It is applied through the Management API and read back
+here.
+
+| Setting           | Value                                            |
+| ----------------- | ------------------------------------------------ |
+| `page_background` | `#160e09` (`--char`)                             |
+| `primary`         | `#f66a1c` (`--ember`)                            |
+| `logo_url`        | `https://pizza42.tejasbhat.com/pizza42-mark.svg` |
+
+The colors were moved off the previous service blue (`#111525` / `#ed4a22`) on
+17 August 2026 when the storefront moved to the ember palette:
+
+```bash
+auth0 api patch branding --data '{"colors":{"primary":"#f66a1c","page_background":"#160e09"}}'
+auth0 api get branding
+```
+
+They must match the storefront tokens `--char` and `--ember` in
+[../DESIGN.md](../DESIGN.md). Update both together or the hosted login will
+visibly diverge from the app it hands off to.
+
+**The logo is a URL Auth0 fetches at render time, not an upload.** It points at
+the deployed storefront, so `web/public/pizza42-mark.svg` in this repository is
+the source of truth and the hosted login picks up a new mark **only after the
+site is redeployed**. A stale sign-in logo therefore means the deployment is
+behind, not that the tenant is misconfigured. Auth0 and the browser both cache
+it, so confirm in a private window.
+
+Reading branding requires scopes the CLI does not request by default:
+
+```bash
+auth0 login --scopes "read:branding,update:branding"
+```
+
+English login copy is:
+
+> Sign in to order and manage your Pizza 42 account.
+
+This text is stored under `prompts/login/custom-text/en`.
+
+## 9. Demo data state
+
+The tenant contained four test identities and five stored orders during live
+validation. All users were deleted on 17 August 2026 at the repository owner's
+request. The current baseline is zero users and zero user `app_metadata`.
+Auth0 audit logs remain available according to tenant retention policy.
+
+## 10. Recreating this tenant
 
 ```bash
 auth0 login

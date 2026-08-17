@@ -46,24 +46,25 @@ Tenant: `tejasbhat.eu.auth0.com`
 | Resilience    | Non-JSON API response reaches the SPA         | Customer-readable message, not a parse error | Pass   |
 | Marketing     | Browser-supplied traits ignored               | Traits derived server-side from `sub`        | Pass   |
 
-## Still to run — requires an interactive browser login
+## Interactive browser validation
 
-| Area           | Test                                 | Expected                                    | Status                    |
-| -------------- | ------------------------------------ | ------------------------------------------- | ------------------------- |
-| Authentication | Database signup and login            | Customer reaches the SPA                    | Not run                   |
-| Authentication | Google login                         | Customer reaches the SPA                    | Blocked: see below        |
-| Authentication | Password reset                       | Reset completes and login succeeds          | Not run                   |
-| Verification   | Unverified customer signs in         | Sign-in succeeds, ordering blocked          | Not run                   |
-| Verification   | Fresh token after verifying          | Cache bypass returns claim `true`           | Not run                   |
-| Ordering       | Verified customer places an order    | 201 with authoritative total                | Not run                   |
-| Profile        | Order lands in `app_metadata.orders` | Order present in the Auth0 profile          | Not run                   |
-| Claims         | Fresh login after ordering           | ID token contains order history and profile | Not run                   |
-| Marketing      | Derived traits for a seeded account  | `favourite_store`, `last_item_ordered` set  | Not run — needs seed data |
-| Deployment     | Second device and network            | Hosted login and order path succeeds        | Not run                   |
+| Area           | Test                                 | Expected                                    | Status                                     |
+| -------------- | ------------------------------------ | ------------------------------------------- | ------------------------------------------ |
+| Authentication | Database signup and login            | Customer reaches the SPA                    | Pass: live tenant                          |
+| Authentication | Google login                         | Customer reaches the SPA                    | Pass: custom Google keys                   |
+| Authentication | Password reset                       | Reset completes and login succeeds          | Not run                                    |
+| Verification   | Unverified customer signs in         | Sign-in succeeds, ordering blocked          | Sign-in observed; API block automated      |
+| Verification   | Fresh token after verifying          | Cache bypass returns claim `true`           | Automated; capture again after reset       |
+| Ordering       | Verified customer places an order    | 201 with authoritative total                | Pass: five live orders                     |
+| Profile        | Order lands in `app_metadata.orders` | Order present in the Auth0 profile          | Pass: inspected live                       |
+| Claims         | Fresh login after ordering           | ID token contains order history and profile | Action deployed; capture again after reset |
+| Marketing      | Derived traits for a seeded account  | `favourite_store`, `last_item_ordered` set  | Automated; reseed before rehearsal         |
+| Deployment     | Second device and network            | Hosted login and order path succeeds        | Not run                                    |
 
-**Google login is blocked** until the `google-oauth2` connection is switched
-from Auth0 development keys to Pizza 42's own Google Cloud OAuth credentials.
-Development keys must not be used for a customer demonstration.
+The Google connection now uses Pizza 42-owned Google Cloud OAuth credentials.
+The tenant's four validation identities and five orders were deleted on 17
+August 2026. The pass rows record evidence observed before that intentional
+reset; create fresh data before the next rehearsal.
 
 ## Acceptance rule
 

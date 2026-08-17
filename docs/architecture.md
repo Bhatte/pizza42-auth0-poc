@@ -28,7 +28,7 @@ sequenceDiagram
 
 The access token authorizes calls to the Pizza 42 API. The API checks its signature, issuer, audience, expiry, and `create:orders` permission. The ID token tells the SPA about the signed-in customer and carries the exercise-specific order-history and customer-profile claims. An ID token is not accepted as API authorization.
 
-Custom claims use a collision-resistant HTTPS namespace. The exact namespace will be frozen with the tenant name before application code is merged.
+Custom claims use the collision-resistant HTTPS namespace `https://pizza42.com/`, frozen in [../CONTEXT.md](../CONTEXT.md) and shared by the Action, the API and the SPA.
 
 ## Ordering boundary
 
