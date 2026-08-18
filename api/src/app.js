@@ -53,6 +53,18 @@ export function createApp({
   );
   app.use(express.json({ limit: "16kb" }));
 
+  // The API's front door. Anyone handed this hostname — a panel member, an
+  // uptime check, a curious reviewer — will open the bare origin first, so it
+  // answers with the service name and where to go rather than a 404 for a path
+  // that was never meant to serve anything.
+  app.get("/", (_request, response) => {
+    response.status(200).json({
+      service: "Pizza 42 Orders API",
+      health: "/api/health",
+      menu: "/api/menu",
+    });
+  });
+
   app.get("/api/health", (_request, response) => {
     response.status(200).json({ status: "ok" });
   });

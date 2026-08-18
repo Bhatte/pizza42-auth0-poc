@@ -4,9 +4,16 @@
 environment. Local-only success is recorded separately and does not close a
 hosted test.
 
-Deployed API: `https://pizza42-api.vercel.app`
-Deployed SPA: `https://pizza42-web.vercel.app`
+Deployed API: `https://pizza42-api.tejasbhat.com` (alias `pizza42-api.vercel.app`)
+Deployed SPA: `https://pizza42.tejasbhat.com` (alias `pizza42-web.vercel.app`)
 Tenant: `tejasbhat.eu.auth0.com`
+
+Both origins are recorded because the SPA's Content Security Policy lists the
+API origin literally. On 18 August 2026 this file named only the `vercel.app`
+alias while the deployed bundle called the custom domain, and the first CSP was
+written from the documentation rather than from the bundle — it would have
+blocked every API call. Check the built bundle, not this table, when changing
+the policy.
 
 ## Verified against the deployed system
 

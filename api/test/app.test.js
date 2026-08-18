@@ -32,6 +32,19 @@ afterAll(async () => {
   await Promise.all([issuer.close(), foreignIssuer.close()]);
 });
 
+describe("GET /", () => {
+  it("answers the bare origin with a service descriptor, not a 404", async () => {
+    const response = await request(createApp({ authConfig })).get("/");
+
+    expect(response.status).toBe(200);
+    expect(response.body).toEqual({
+      service: "Pizza 42 Orders API",
+      health: "/api/health",
+      menu: "/api/menu",
+    });
+  });
+});
+
 describe("GET /api/health", () => {
   it("reports that the API is ready without exposing infrastructure details", async () => {
     const response = await request(createApp({ authConfig })).get(

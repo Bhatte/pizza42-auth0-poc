@@ -1,12 +1,19 @@
 # Pizza 42 identity proof of concept
 
-|                   |                                           |
-| ----------------- | ----------------------------------------- |
-| **Application**   | https://pizza42-web.vercel.app            |
-| **Custom domain** | https://pizza42.tejasbhat.com             |
-| **API**           | https://pizza42-api.vercel.app            |
-| **Health check**  | https://pizza42-api.vercel.app/api/health |
-| **Tenant**        | `tejasbhat.eu.auth0.com`                  |
+|                       |                                              |
+| --------------------- | -------------------------------------------- |
+| **Application**       | https://pizza42.tejasbhat.com                |
+| **Application alias** | https://pizza42-web.vercel.app               |
+| **API**               | https://pizza42-api.tejasbhat.com            |
+| **API alias**         | https://pizza42-api.vercel.app               |
+| **Health check**      | https://pizza42-api.tejasbhat.com/api/health |
+| **Tenant**            | `tejasbhat.eu.auth0.com`                     |
+
+The custom domains are the origins the deployed application actually uses; the
+`vercel.app` names are platform aliases that still resolve. Both matter: the
+SPA's Content Security Policy names the API origin literally, so a deployment
+target that is not written down here is one that will be missing from the
+policy.
 
 Pizza 42 is a security-focused Auth0 proof of concept for a customer ordering journey. It combines a React single-page application, an Express API, a tested Auth0 Post-Login Action, and a protected marketing-event simulation. The implementation is intentionally small enough to review end to end: every trust decision has a direct test or a documented hosted validation step.
 
@@ -132,5 +139,7 @@ No hosted result is claimed until the corresponding row in [docs/test-matrix.md]
 - [Contributing](CONTRIBUTING.md)
 
 Universal Login branding lives in the Auth0 tenant, not in this repository. It
-is tracked in [auth0/tenant-config.md](auth0/tenant-config.md) section 8 and is
-currently one revision behind the storefront.
+is tracked in [auth0/tenant-config.md](auth0/tenant-config.md) section 8 and was
+reconciled with the storefront palette on 17 August 2026. The logo is a URL
+Auth0 fetches from the deployed storefront at render time, so it follows a
+deployment rather than a tenant change.
