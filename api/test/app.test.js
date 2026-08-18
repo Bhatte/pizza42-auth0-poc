@@ -4,11 +4,24 @@ import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { createApp } from "../src/app.js";
 import { createTestIssuer } from "./helpers/test-issuer.js";
 
+// Everything an order needs, so a rejection can only be about the one thing a
+// test deliberately breaks.
+const ORDER_READY_TOKEN = Object.freeze({
+  scope: "create:orders",
+  claims: { "https://pizza42.com/email_verified": true },
+});
+
 let authConfig;
 let issuer;
+// A second, fully valid issuer with its own key pair. Its tokens are correctly
+// signed and structurally perfect; they are simply not from the issuer this API
+// trusts. That is what makes it a real foreign-issuer test rather than a
+// malformed-token test wearing the name.
+let foreignIssuer;
 
 beforeAll(async () => {
   issuer = await createTestIssuer();
+  foreignIssuer = await createTestIssuer();
   authConfig = {
     audience: "https://api.pizza42.com",
     issuerBaseURL: issuer.issuer,
@@ -16,7 +29,7 @@ beforeAll(async () => {
 });
 
 afterAll(async () => {
-  await issuer.close();
+  await Promise.all([issuer.close(), foreignIssuer.close()]);
 });
 
 describe("GET /api/health", () => {
@@ -129,15 +142,28 @@ describe("POST /api/orders authorization", () => {
     );
   });
 
+  // Each of these tokens would place an order if it were trusted: correct
+  // scope, verified-email claim, valid signature. Only the issuing authority or
+  // the validity window is wrong, which is the whole point.
   it.each([
-    ["the wrong audience", { audience: "https://another-api.example" }],
-    ["an expired token", { expiresIn: "-1m" }],
-  ])("rejects a signed token with %s", async (_scenario, tokenOptions) => {
-    const accessToken = await issuer.issueToken({
-      scope: "create:orders",
-      claims: { "https://pizza42.com/email_verified": true },
-      ...tokenOptions,
-    });
+    [
+      "the wrong audience",
+      () =>
+        issuer.issueToken({
+          ...ORDER_READY_TOKEN,
+          audience: "https://another-api.example",
+        }),
+    ],
+    [
+      "an expired lifetime",
+      () => issuer.issueToken({ ...ORDER_READY_TOKEN, expiresIn: "-1m" }),
+    ],
+    [
+      "a foreign issuer's signature",
+      () => foreignIssuer.issueToken(ORDER_READY_TOKEN),
+    ],
+  ])("rejects a signed token with %s", async (_scenario, issueToken) => {
+    const accessToken = await issueToken();
 
     const response = await request(createApp({ authConfig }))
       .post("/api/orders")
@@ -154,28 +180,43 @@ describe("POST /api/orders authorization", () => {
     });
   });
 
-  it("allows sign-in state but rejects ordering when email is unverified", async () => {
-    const accessToken = await issuer.issueToken({
-      scope: "create:orders",
-      claims: { "https://pizza42.com/email_verified": false },
-    });
-
-    const response = await request(createApp({ authConfig }))
-      .post("/api/orders")
-      .set("authorization", `Bearer ${accessToken}`)
-      .send({
-        store: "Dublin Camden Street",
-        items: [{ sku: "PIZ-MARG-L", qty: 1 }],
+  // The middleware tests `=== true`, so anything that is not the boolean is a
+  // refusal. The string case matters most: `"false"` and `"true"` are both
+  // truthy, so a claim that arrived as text would wave through an unverified
+  // customer under a `Boolean(claim)` check.
+  it.each([
+    ["is false", { "https://pizza42.com/email_verified": false }],
+    ["is absent entirely", {}],
+    [
+      'arrived as the string "true"',
+      { "https://pizza42.com/email_verified": "true" },
+    ],
+  ])(
+    "allows sign-in state but rejects ordering when the verification claim %s",
+    async (_scenario, claims) => {
+      const accessToken = await issuer.issueToken({
+        scope: "create:orders",
+        claims,
       });
 
-    expect(response.status).toBe(403);
-    expect(response.body).toEqual({
-      error: "email_not_verified",
-      message: "A verified email address is required before placing an order.",
-      remediation:
-        "Check your inbox for the verification link, then refresh your session.",
-    });
-  });
+      const response = await request(createApp({ authConfig }))
+        .post("/api/orders")
+        .set("authorization", `Bearer ${accessToken}`)
+        .send({
+          store: "Dublin Camden Street",
+          items: [{ sku: "PIZ-MARG-L", qty: 1 }],
+        });
+
+      expect(response.status).toBe(403);
+      expect(response.body).toEqual({
+        error: "email_not_verified",
+        message:
+          "A verified email address is required before placing an order.",
+        remediation:
+          "Check your inbox for the verification link, then refresh your session.",
+      });
+    },
+  );
 });
 
 describe("POST /api/orders", () => {

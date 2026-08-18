@@ -6,6 +6,19 @@ Tenant identifiers are public; secrets are never recorded here.
 
 Tenant: `tejasbhat.eu.auth0.com` (EU region)
 
+**Last reconciled against the live tenant: 18 August 2026.** Re-run the reads
+below before a rehearsal and correct anything that disagrees. A settings change
+made in the Dashboard does not announce itself here, and a reviewer who trusts
+a stale line in this file forms a false belief about the running system — which
+is worse than having no file at all.
+
+```bash
+auth0 api get "resource-servers"          # consent, RBAC, dialect, scopes
+auth0 api get "clients?fields=..."        # callbacks, grants, refresh tokens
+auth0 api get "attack-protection/brute-force-protection"
+auth0 api get branding                    # needs read:branding, see §8
+```
+
 ## 1. Pizza 42 Orders API
 
 | Setting                   | Value                          |
@@ -17,7 +30,7 @@ Tenant: `tejasbhat.eu.auth0.com` (EU region)
 | RBAC (`enforce_policies`) | **off**                        |
 | Token dialect             | `access_token`                 |
 | Allow offline access      | on                             |
-| Skip first-party consent  | off                            |
+| Skip first-party consent  | **on**                         |
 
 RBAC is deliberately off. The use case has one API capability and no role
 hierarchy, so OAuth scopes alone express "this token may place an order",
@@ -30,9 +43,18 @@ failure mode without adding customer value.
 Offline access is on because the SPA requests `offline_access` for refresh
 tokens.
 
-First-party consent skipping is currently off. Auth0 therefore displays the
-API consent prompt in hosted environments. `localhost` displays consent even
-when this option is enabled because it is not a verifiable first-party origin.
+First-party consent skipping is on, so the hosted storefront hands off to
+Universal Login and back without an intervening "Pizza 42 Web is requesting
+access" screen. Pizza 42 owns both the SPA and the Orders API; asking a hungry
+customer to authorise the pizza shop to talk to the pizza shop is friction that
+buys nothing. The setting is scoped to verifiable first-party clients, so a
+genuine third-party integration would still have to prompt.
+
+**`localhost` still shows the consent prompt**, because a localhost callback
+cannot be verified as belonging to the client owner. That is a property of the
+origin, not a misconfiguration. Rehearse the customer journey against
+`https://pizza42.tejasbhat.com`; a demo driven from `http://localhost:5173`
+will show a consent beat that no real customer sees.
 
 ## 2. Pizza 42 Web (single-page application)
 

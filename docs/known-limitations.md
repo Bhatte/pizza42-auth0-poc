@@ -4,6 +4,8 @@ These limits are part of the POC boundary, not hidden follow-up work.
 
 - Orders are stored in Auth0 profile metadata only because the exercise requires it. Production order data belongs in a transactional Pizza 42 datastore.
 - Appending an order uses read-modify-write and is not atomic. Concurrent requests may overwrite one another.
+- Order creation is not idempotent. There is no client-supplied idempotency key and no server-side record of one, so a retry after a response is lost in transit creates a second order. Production belongs with the Pizza 42 order service, where the idempotency key and the transaction commit live together.
+- Money is a JavaScript number rounded to two decimal places. That is exact for this catalogue — three prices, at most twenty of each — but a production commerce system should carry integer minor units or a decimal type rather than rely on the arithmetic staying small.
 - Full order history in an ID token does not scale. Token and profile size grow with order count.
 - Email verification is read from a token claim and can remain stale until the SPA obtains a new token.
 - The marketing destination is simulated. No claim is made that a Segment or Braze campaign was delivered.

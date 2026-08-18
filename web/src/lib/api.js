@@ -53,6 +53,13 @@ export function createApiClient({ baseUrl, fetch: fetchRequest = fetch }) {
       const response = await fetchRequest(`${normalizedBaseUrl}/api/menu`);
       return parseResponse(response);
     },
+    async getOrders(accessToken) {
+      const response = await fetchRequest(`${normalizedBaseUrl}/api/orders`, {
+        headers: { authorization: `Bearer ${accessToken}` },
+      });
+      const payload = await parseResponse(response);
+      return payload.orders;
+    },
     async createOrder(order, accessToken) {
       const response = await fetchRequest(`${normalizedBaseUrl}/api/orders`, {
         method: "POST",

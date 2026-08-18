@@ -1,15 +1,19 @@
 const CLAIM_NAMESPACE = "https://pizza42.com/";
 
-function mostFrequent(items, selectKey) {
-  const counts = new Map();
+// Ranks by summed weight rather than by how many lines mention a key. Ten
+// Margheritas on one order line outrank a single Garden Veg on another, which
+// is what Marketing means by "most ordered". Ties keep the earliest-seen key,
+// so the trait stays put across logins instead of flapping.
+function highestWeighted(entries, selectKey, selectWeight = () => 1) {
+  const totals = new Map();
 
-  for (const item of items) {
-    const key = selectKey(item);
-    if (key) counts.set(key, (counts.get(key) ?? 0) + 1);
+  for (const entry of entries) {
+    const key = selectKey(entry);
+    if (key) totals.set(key, (totals.get(key) ?? 0) + selectWeight(entry));
   }
 
   return (
-    [...counts.entries()].sort((left, right) => right[1] - left[1])[0]?.[0] ??
+    [...totals.entries()].sort((left, right) => right[1] - left[1])[0]?.[0] ??
     null
   );
 }
@@ -58,8 +62,14 @@ function deriveCustomerProfile(orders, event) {
   return {
     customer_segment: segmentFor(orderCount),
     order_count: orderCount,
-    favourite_item: mostFrequent(items, (item) => item.name),
-    favourite_store: mostFrequent(orders, (order) => order.store),
+    favourite_item: highestWeighted(
+      items,
+      (item) => item.name,
+      // Orders seeded before the line schema settled may carry no qty.
+      (item) => Number(item.qty) || 1,
+    ),
+    // A visit is one visit, however many pizzas left the oven.
+    favourite_store: highestWeighted(orders, (order) => order.store),
     last_item_ordered: headlineItem(newestFirst[0]),
     last_order_at: newestFirst[0]?.placed_at ?? null,
     average_order_value: Math.round((total / orderCount) * 100) / 100,

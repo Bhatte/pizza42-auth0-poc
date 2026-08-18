@@ -34,6 +34,31 @@ describe("Pizza 42 API client", () => {
     );
   });
 
+  it("reads order history with a bearer token and unwraps the collection", async () => {
+    const orders = [
+      { id: "ord_42", store: "Dublin Camden Street", total: 14.5 },
+    ];
+    const fetch = vi.fn().mockResolvedValue(
+      new Response(JSON.stringify({ orders }), {
+        status: 200,
+        headers: { "content-type": "application/json" },
+      }),
+    );
+    const api = createApiClient({
+      baseUrl: "https://api.pizza42.example",
+      fetch,
+    });
+
+    await expect(api.getOrders("customer-access-token")).resolves.toEqual(
+      orders,
+    );
+
+    expect(fetch).toHaveBeenCalledWith(
+      "https://api.pizza42.example/api/orders",
+      { headers: { authorization: "Bearer customer-access-token" } },
+    );
+  });
+
   it("requests a server-derived marketing event without sending customer traits", async () => {
     const fetch = vi.fn().mockResolvedValue(
       new Response(

@@ -28,6 +28,8 @@ sequenceDiagram
 
 The access token authorizes calls to the Pizza 42 API. The API checks its signature, issuer, audience, expiry, and `create:orders` permission. The ID token tells the SPA about the signed-in customer and carries the exercise-specific order-history and customer-profile claims. An ID token is not accepted as API authorization.
 
+The ID token is a signed statement about the customer at the moment of login, so it cannot describe an order placed since. The storefront's "Recent orders" list therefore reads `GET /api/orders` under `read:orders`, and the order-history claim is displayed separately in Session details as the requirement 10 artefact. Both counts are shown together deliberately: they diverge after an order and agree again after the next login, which is the clearest available demonstration that identity carries assertions rather than live application state.
+
 Custom claims use the collision-resistant HTTPS namespace `https://pizza42.com/`, frozen in [../CONTEXT.md](../CONTEXT.md) and shared by the Action, the API and the SPA.
 
 ## Ordering boundary
@@ -47,6 +49,8 @@ The SPA invokes the simulation independently of menu loading and checkout and tr
 ## HTTP boundary controls
 
 The API applies security headers, an exact CORS origin allowlist, a 16 KiB JSON body limit, process-local request limiting, strict schemas, and safe JSON errors. These controls reduce accidental exposure and common abuse but do not replace edge rate limiting, monitoring, or a web application firewall in production.
+
+The SPA is served with its own headers from [../web/vercel.json](../web/vercel.json): a Content Security Policy, HSTS, `nosniff`, `frame-ancestors 'none'`, a referrer policy and a Permissions-Policy denying device APIs the storefront never uses. The policy is deliberately not the strictest expressible one. `auth0-spa-js` creates a Web Worker from a `blob:` URL to hold refresh tokens off the main thread, and restores sessions through a hidden iframe against the tenant's `/authorize`, so `worker-src 'self' blob:` and `frame-src` for the tenant are required. A policy without them breaks authentication silently, which is worse than no policy at all — the storefront still renders, and only the session quietly fails. The Auth0 domain and the API origin are literals in that file because Vercel does not expand environment variables in header values; changing either deployment target means changing the policy in the same commit.
 
 ## Production migration
 

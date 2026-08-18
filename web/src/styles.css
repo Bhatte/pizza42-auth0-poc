@@ -762,6 +762,15 @@ svg {
   font-size: 0.88rem;
   line-height: 1.55;
 }
+.notice-feedback {
+  color: var(--warning);
+  font-weight: 560;
+}
+/* The live region is always mounted so screen readers announce into it, but an
+   empty paragraph would still claim its margin and push the layout. */
+.notice-feedback:empty {
+  display: none;
+}
 .ordering-grid {
   display: grid;
   align-items: start;
@@ -880,6 +889,10 @@ svg {
   font-size: 0.76rem;
   font-variant-numeric: tabular-nums;
 }
+.basket-lines li span.line-limit {
+  color: var(--warning);
+  font-weight: 560;
+}
 .quantity-control {
   display: inline-flex;
   align-items: center;
@@ -897,8 +910,12 @@ svg {
   cursor: pointer;
   transition: background-color 150ms var(--ease-out-quint);
 }
-.quantity-control button:hover {
+.quantity-control button:hover:not(:disabled) {
   background: var(--char-lift);
+}
+.quantity-control button:disabled {
+  color: var(--faint);
+  cursor: not-allowed;
 }
 .quantity-control > span {
   min-width: 1.5rem;

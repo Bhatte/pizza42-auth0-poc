@@ -45,6 +45,7 @@ function createApi() {
         },
       ],
     }),
+    getOrders: vi.fn().mockResolvedValue([]),
     createOrder: vi.fn().mockResolvedValue({
       id: "ord_confirmed",
       total: 14.5,
@@ -153,6 +154,66 @@ describe("Pizza 42 ordering experience", () => {
     ).toBeInTheDocument();
   });
 
+  it.each([
+    [
+      "the refresh fails",
+      { refreshVerification: vi.fn().mockRejectedValue(new Error("network")) },
+      /could not check your account/i,
+    ],
+    [
+      "the address is still unconfirmed",
+      { refreshVerification: vi.fn().mockResolvedValue(false) },
+      /still is not confirmed/i,
+    ],
+  ])(
+    "tells the customer what happened when %s",
+    async (_case, authOverrides, expected) => {
+      const user = userEvent.setup();
+      const auth = createAuthenticatedAuth({
+        idTokenClaims: {
+          sub: "auth0|customer-42",
+          "https://pizza42.com/email_verified": false,
+          "https://pizza42.com/orders": [],
+        },
+        ...authOverrides,
+      });
+
+      render(<Pizza42App auth={auth} api={createApi()} />);
+
+      const check = screen.getByRole("button", { name: "I've confirmed it" });
+      await user.click(check);
+
+      expect(await screen.findByText(expected)).toBeInTheDocument();
+      // The button has to come back, or the customer is stranded on "Checking…".
+      expect(check).toBeEnabled();
+    },
+  );
+
+  // The API rejects a line over 20. Discovering that after pressing "Place
+  // order" is a preventable dead end, so the basket refuses to build one.
+  it("stops the basket at the quantity the API will accept", async () => {
+    const user = userEvent.setup();
+
+    render(<Pizza42App auth={createAuthenticatedAuth()} api={createApi()} />);
+
+    await user.click(
+      await screen.findByRole("button", { name: "Add Margherita" }),
+    );
+
+    const addAnother = screen.getByRole("button", {
+      name: "Add another Margherita",
+    });
+    for (let click = 0; click < 25; click += 1) {
+      if (!addAnother.disabled) await user.click(addAnother);
+    }
+
+    expect(screen.getByLabelText("Margherita quantity")).toHaveTextContent(
+      "20",
+    );
+    expect(addAnother).toBeDisabled();
+    expect(screen.getByText("Maximum 20 per item")).toBeInTheDocument();
+  });
+
   it("submits only SKU and quantity, then confirms the authoritative order", async () => {
     const user = userEvent.setup();
     const auth = createAuthenticatedAuth();
@@ -234,29 +295,72 @@ describe("Pizza 42 ordering experience", () => {
   });
 
   it("renders order history as plain customer context", async () => {
-    const auth = createAuthenticatedAuth({
-      idTokenClaims: {
-        sub: "auth0|customer-42",
-        "https://pizza42.com/email_verified": true,
-        "https://pizza42.com/orders": [
-          {
-            id: "ord_history",
-            placed_at: "2026-08-09T18:22:00.000Z",
-            store: "Dublin Camden Street",
-            total: 21.4,
-            currency: "EUR",
-          },
-        ],
+    const api = createApi();
+    api.getOrders.mockResolvedValue([
+      {
+        id: "ord_history",
+        placed_at: "2026-08-09T18:22:00.000Z",
+        store: "Dublin Camden Street",
+        total: 21.4,
+        currency: "EUR",
       },
-    });
+    ]);
 
-    render(<Pizza42App auth={auth} api={createApi()} />);
+    render(<Pizza42App auth={createAuthenticatedAuth()} api={api} />);
 
     expect(
       screen.getByRole("heading", { name: "Recent orders" }),
     ).toBeInTheDocument();
-    expect(screen.getByText("ord_history")).toBeInTheDocument();
+    expect(await screen.findByText("ord_history")).toBeInTheDocument();
     expect(screen.getByText("€21.40")).toBeInTheDocument();
+  });
+
+  // The bug this replaces: history came from the ID token, which is minted at
+  // login and cannot contain an order placed a second ago. A customer saw
+  // "Order ord_confirmed is with the kitchen" above "Nothing yet".
+  it("shows a newly placed order in history without a new sign-in", async () => {
+    const user = userEvent.setup();
+    const api = createApi();
+    api.getOrders.mockResolvedValueOnce([]).mockResolvedValue([
+      {
+        id: "ord_confirmed",
+        placed_at: "2026-08-18T18:22:00.000Z",
+        store: "Dublin Camden Street",
+        total: 14.5,
+        currency: "EUR",
+      },
+    ]);
+
+    render(<Pizza42App auth={createAuthenticatedAuth()} api={api} />);
+
+    expect(await screen.findByText(/nothing yet/i)).toBeInTheDocument();
+
+    await user.click(
+      await screen.findByRole("button", { name: "Add Margherita" }),
+    );
+    await user.click(screen.getByRole("button", { name: /place order/i }));
+
+    expect(await screen.findByText("ord_confirmed")).toBeInTheDocument();
+    expect(screen.queryByText(/nothing yet/i)).not.toBeInTheDocument();
+  });
+
+  it("keeps the order confirmation honest when history cannot be read", async () => {
+    const user = userEvent.setup();
+    const api = createApi();
+    api.getOrders.mockRejectedValue(new Error("history unavailable"));
+
+    render(<Pizza42App auth={createAuthenticatedAuth()} api={api} />);
+
+    await user.click(
+      await screen.findByRole("button", { name: "Add Margherita" }),
+    );
+    await user.click(screen.getByRole("button", { name: /place order/i }));
+
+    expect(await screen.findByText(/is with the kitchen/i)).toBeInTheDocument();
+    expect(
+      screen.getByText(/could not load your recent orders/i),
+    ).toBeInTheDocument();
+    expect(screen.queryByText(/nothing yet/i)).not.toBeInTheDocument();
   });
 
   it("keeps identity detail behind a quiet, collapsed disclosure", async () => {

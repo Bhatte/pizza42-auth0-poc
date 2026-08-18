@@ -7,6 +7,10 @@ const formatEuro = new Intl.NumberFormat("en-IE", {
 const EMAIL_VERIFIED_CLAIM = "https://pizza42.com/email_verified";
 const ORDERS_CLAIM = "https://pizza42.com/orders";
 const CUSTOMER_PROFILE_CLAIM = "https://pizza42.com/customer_profile";
+// Mirrors the bounded order contract in CONTEXT.md, which the API enforces in
+// its request schema. Repeated here so the basket cannot build a line the
+// kitchen will refuse; the API remains the boundary, this is just courtesy.
+const MAX_LINE_QUANTITY = 20;
 
 // The menu endpoint returns what the kitchen sells, not how it photographs.
 // Art direction is a storefront concern, so the pairing lives here and degrades
@@ -284,6 +288,13 @@ function OrderingExperience({ auth, api }) {
   const [basket, setBasket] = useState({});
   const [orderState, setOrderState] = useState({ status: "idle" });
   const [marketingState, setMarketingState] = useState({ status: "loading" });
+  const [historyState, setHistoryState] = useState({
+    status: "loading",
+    orders: [],
+  });
+  // Bumped after a successful order. The ID token cannot answer "what have I
+  // ordered?" because it was minted at login and says so; the API can.
+  const [historyRevision, setHistoryRevision] = useState(0);
   const [isVerified, setIsVerified] = useState(
     auth.idTokenClaims?.[EMAIL_VERIFIED_CLAIM] === true,
   );
@@ -309,6 +320,21 @@ function OrderingExperience({ auth, api }) {
     };
   }, [api, subject, getAccessTokenSilently]);
 
+  useEffect(() => {
+    let active = true;
+
+    getAccessTokenSilently()
+      .then((accessToken) => api.getOrders(accessToken))
+      .then((orders) => active && setHistoryState({ status: "ready", orders }))
+      .catch(
+        () => active && setHistoryState({ status: "unavailable", orders: [] }),
+      );
+
+    return () => {
+      active = false;
+    };
+  }, [api, subject, getAccessTokenSilently, historyRevision]);
+
   const basketItems = useMemo(() => {
     if (!menu) return [];
     return menu.items
@@ -320,14 +346,20 @@ function OrderingExperience({ auth, api }) {
     (sum, item) => sum + item.price * item.qty,
     0,
   );
-  const orderHistory = Array.isArray(auth.idTokenClaims?.[ORDERS_CLAIM])
+  // Challenge requirement 10: the order history Auth0 put in the ID token at
+  // login. It is evidence, not the customer's live order list, so it is shown
+  // in Session details beside the API's answer rather than sold as "recent".
+  const claimedOrders = Array.isArray(auth.idTokenClaims?.[ORDERS_CLAIM])
     ? auth.idTokenClaims[ORDERS_CLAIM]
     : [];
   const customerProfile = auth.idTokenClaims?.[CUSTOMER_PROFILE_CLAIM] ?? {};
 
   function changeQuantity(sku, amount) {
     setBasket((current) => {
-      const nextQuantity = Math.max(0, (current[sku] ?? 0) + amount);
+      const nextQuantity = Math.min(
+        MAX_LINE_QUANTITY,
+        Math.max(0, (current[sku] ?? 0) + amount),
+      );
       const next = { ...current };
       if (nextQuantity === 0) delete next[sku];
       else next[sku] = nextQuantity;
@@ -348,6 +380,7 @@ function OrderingExperience({ auth, api }) {
       );
       setBasket({});
       setOrderState({ status: "confirmed", order });
+      setHistoryRevision((revision) => revision + 1);
     } catch (error) {
       if (error?.code === "email_not_verified") setIsVerified(false);
       setOrderState({ status: "error", error });
@@ -390,6 +423,7 @@ function OrderingExperience({ auth, api }) {
             onRefresh={async () => {
               const verified = await auth.refreshVerification();
               setIsVerified(verified);
+              return verified;
             }}
           />
         ) : null}
@@ -445,6 +479,11 @@ function OrderingExperience({ auth, api }) {
                     <div>
                       <strong>{item.name}</strong>
                       <span>{formatEuro.format(item.price * item.qty)}</span>
+                      {item.qty >= MAX_LINE_QUANTITY ? (
+                        <span className="line-limit">
+                          Maximum {MAX_LINE_QUANTITY} per item
+                        </span>
+                      ) : null}
                     </div>
                     <div
                       className="quantity-control"
@@ -461,6 +500,7 @@ function OrderingExperience({ auth, api }) {
                       <button
                         type="button"
                         onClick={() => changeQuantity(item.sku, 1)}
+                        disabled={item.qty >= MAX_LINE_QUANTITY}
                         aria-label={`Add another ${item.name}`}
                       >
                         +
@@ -503,13 +543,14 @@ function OrderingExperience({ auth, api }) {
           </aside>
         </div>
 
-        <OrderHistory orders={orderHistory} />
+        <OrderHistory state={historyState} />
 
         <Colophon>
           <SessionDetails
             auth={auth}
             isVerified={isVerified}
-            orderHistory={orderHistory}
+            claimedOrders={claimedOrders}
+            historyState={historyState}
             customerProfile={customerProfile}
             marketingState={marketingState}
           />
@@ -519,8 +560,20 @@ function OrderingExperience({ auth, api }) {
   );
 }
 
+// Two ways the check can disappoint, and they need different words. The token
+// refresh can fail, which is our problem; or it can succeed and still report an
+// unverified address, which means the customer has not opened the link yet.
+// Saying nothing in either case leaves the button looking broken.
+const REFRESH_FEEDBACK = {
+  "still-unverified":
+    "That address still is not confirmed. Open the link in the email, then try again.",
+  failed:
+    "We could not check your account just now. Please try again in a moment.",
+};
+
 function VerificationNotice({ email, errorMessage, onRefresh }) {
   const [isChecking, setIsChecking] = useState(false);
+  const [feedback, setFeedback] = useState(null);
 
   return (
     <section
@@ -536,6 +589,9 @@ function VerificationNotice({ email, errorMessage, onRefresh }) {
           {errorMessage ??
             `Browse all you like. Before your first order, open the link we sent to ${email ?? "your inbox"}.`}
         </p>
+        <p className="notice-feedback" role="status" aria-live="polite">
+          {feedback ? REFRESH_FEEDBACK[feedback] : ""}
+        </p>
       </div>
       <button
         className="button button-secondary"
@@ -543,8 +599,13 @@ function VerificationNotice({ email, errorMessage, onRefresh }) {
         disabled={isChecking}
         onClick={async () => {
           setIsChecking(true);
+          setFeedback(null);
           try {
-            await onRefresh();
+            // A truthy result unmounts this notice, so only the
+            // still-unverified case needs to say anything.
+            if (!(await onRefresh())) setFeedback("still-unverified");
+          } catch {
+            setFeedback("failed");
           } finally {
             setIsChecking(false);
           }
@@ -556,35 +617,59 @@ function VerificationNotice({ email, errorMessage, onRefresh }) {
   );
 }
 
-function OrderHistory({ orders }) {
+function OrderHistory({ state }) {
   return (
     <section className="history-section" aria-labelledby="history-heading">
       <h2 id="history-heading">Recent orders</h2>
-      {orders.length === 0 ? (
-        <p className="history-empty">
-          Nothing yet. Your first order will show up here.
-        </p>
-      ) : (
-        <ol className="history-list">
-          {orders.map((order) => (
-            <li key={order.id}>
-              <div>
-                <strong>{order.store}</strong>
-                <code>{order.id}</code>
-              </div>
-              <span>{formatEuro.format(order.total)}</span>
-            </li>
-          ))}
-        </ol>
-      )}
+      <OrderHistoryBody state={state} />
     </section>
+  );
+}
+
+function OrderHistoryBody({ state }) {
+  if (state.status === "loading") {
+    return <p className="history-empty">Looking up your recent orders…</p>;
+  }
+
+  // The kitchen has the order; only the history read failed. Say that, rather
+  // than showing an empty list that reads as "your order vanished".
+  if (state.status === "unavailable") {
+    return (
+      <p className="history-empty">
+        We could not load your recent orders just now. Anything you have ordered
+        is safe.
+      </p>
+    );
+  }
+
+  if (state.orders.length === 0) {
+    return (
+      <p className="history-empty">
+        Nothing yet. Your first order will show up here.
+      </p>
+    );
+  }
+
+  return (
+    <ol className="history-list">
+      {state.orders.map((order) => (
+        <li key={order.id}>
+          <div>
+            <strong>{order.store}</strong>
+            <code>{order.id}</code>
+          </div>
+          <span>{formatEuro.format(order.total)}</span>
+        </li>
+      ))}
+    </ol>
   );
 }
 
 function SessionDetails({
   auth,
   isVerified,
-  orderHistory,
+  claimedOrders,
+  historyState,
   customerProfile,
   marketingState,
 }) {
@@ -602,14 +687,29 @@ function SessionDetails({
             <dd>{isVerified ? "Yes" : "Not yet"}</dd>
           </div>
           <div>
-            <dt>Orders on file</dt>
-            <dd>{orderHistory.length}</dd>
+            <dt>Orders in this ID token</dt>
+            <dd>{claimedOrders.length}</dd>
+          </div>
+          <div>
+            <dt>Orders on file now</dt>
+            <dd>
+              {historyState.status === "ready"
+                ? historyState.orders.length
+                : "Unavailable"}
+            </dd>
           </div>
         </dl>
         <p className="session-note">
           Sign-in is handled by Auth0. The ordering API checks the access token,
           its scope and this account&apos;s confirmation state before the
           kitchen sees anything. Token values are never shown here.
+        </p>
+        <p className="session-note">
+          The two order counts differ after you order and agree again after your
+          next sign-in. The ID token is a signed statement about who you were at
+          login, so it cannot know about an order placed since; the count on
+          file comes from the orders API, which reads the profile live. Identity
+          answers who you are, not what you have bought.
         </p>
         <div className="session-profile">
           <p className="session-profile-label">

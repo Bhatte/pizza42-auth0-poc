@@ -1,0 +1,240 @@
+[
+  {
+    "name": "a customer with no orders is new, not empty",
+    "identity_provider": "auth0",
+    "orders": [],
+    "expected": {
+      "customer_segment": "New Customer",
+      "order_count": 0,
+      "favourite_item": null,
+      "favourite_store": null,
+      "last_item_ordered": null,
+      "last_order_at": null,
+      "average_order_value": 0,
+      "identity_provider": "auth0"
+    }
+  },
+  {
+    "name": "one order makes an occasional customer, and social identity is carried",
+    "identity_provider": "google-oauth2",
+    "orders": [
+      {
+        "id": "ord_1",
+        "placed_at": "2026-08-01T18:00:00.000Z",
+        "store": "Dublin Camden Street",
+        "items": [{ "name": "Margherita", "size": "Large", "qty": 1 }],
+        "total": 14.5
+      }
+    ],
+    "expected": {
+      "customer_segment": "Occasional",
+      "order_count": 1,
+      "favourite_item": "Margherita",
+      "favourite_store": "Dublin Camden Street",
+      "last_item_ordered": "Margherita",
+      "last_order_at": "2026-08-01T18:00:00.000Z",
+      "average_order_value": 14.5,
+      "identity_provider": "google-oauth2"
+    }
+  },
+  {
+    "name": "the fourth order promotes to returning regular",
+    "identity_provider": "auth0",
+    "orders": [
+      {
+        "id": "ord_1",
+        "placed_at": "2026-08-01T18:00:00.000Z",
+        "store": "Dublin Rathmines",
+        "items": [],
+        "total": 12
+      },
+      {
+        "id": "ord_2",
+        "placed_at": "2026-08-02T18:00:00.000Z",
+        "store": "Dublin Rathmines",
+        "items": [],
+        "total": 12
+      },
+      {
+        "id": "ord_3",
+        "placed_at": "2026-08-03T18:00:00.000Z",
+        "store": "Dublin Rathmines",
+        "items": [],
+        "total": 12
+      },
+      {
+        "id": "ord_4",
+        "placed_at": "2026-08-04T18:00:00.000Z",
+        "store": "Dublin Rathmines",
+        "items": [],
+        "total": 12
+      }
+    ],
+    "expected": {
+      "customer_segment": "Returning Regular",
+      "order_count": 4,
+      "favourite_item": null,
+      "favourite_store": "Dublin Rathmines",
+      "last_item_ordered": null,
+      "last_order_at": "2026-08-04T18:00:00.000Z",
+      "average_order_value": 12,
+      "identity_provider": "auth0"
+    }
+  },
+  {
+    "name": "the tenth order promotes to loyal regular",
+    "identity_provider": "auth0",
+    "orders": [
+      {
+        "id": "ord_1",
+        "placed_at": "2026-07-01T18:00:00.000Z",
+        "store": "Dublin Smithfield",
+        "items": [],
+        "total": 10
+      },
+      {
+        "id": "ord_2",
+        "placed_at": "2026-07-02T18:00:00.000Z",
+        "store": "Dublin Smithfield",
+        "items": [],
+        "total": 10
+      },
+      {
+        "id": "ord_3",
+        "placed_at": "2026-07-03T18:00:00.000Z",
+        "store": "Dublin Smithfield",
+        "items": [],
+        "total": 10
+      },
+      {
+        "id": "ord_4",
+        "placed_at": "2026-07-04T18:00:00.000Z",
+        "store": "Dublin Smithfield",
+        "items": [],
+        "total": 10
+      },
+      {
+        "id": "ord_5",
+        "placed_at": "2026-07-05T18:00:00.000Z",
+        "store": "Dublin Smithfield",
+        "items": [],
+        "total": 10
+      },
+      {
+        "id": "ord_6",
+        "placed_at": "2026-07-06T18:00:00.000Z",
+        "store": "Dublin Smithfield",
+        "items": [],
+        "total": 10
+      },
+      {
+        "id": "ord_7",
+        "placed_at": "2026-07-07T18:00:00.000Z",
+        "store": "Dublin Smithfield",
+        "items": [],
+        "total": 10
+      },
+      {
+        "id": "ord_8",
+        "placed_at": "2026-07-08T18:00:00.000Z",
+        "store": "Dublin Smithfield",
+        "items": [],
+        "total": 10
+      },
+      {
+        "id": "ord_9",
+        "placed_at": "2026-07-09T18:00:00.000Z",
+        "store": "Dublin Smithfield",
+        "items": [],
+        "total": 10
+      },
+      {
+        "id": "ord_10",
+        "placed_at": "2026-07-10T18:00:00.000Z",
+        "store": "Dublin Smithfield",
+        "items": [],
+        "total": 10
+      }
+    ],
+    "expected": {
+      "customer_segment": "Loyal Regular",
+      "order_count": 10,
+      "favourite_item": null,
+      "favourite_store": "Dublin Smithfield",
+      "last_item_ordered": null,
+      "last_order_at": "2026-07-10T18:00:00.000Z",
+      "average_order_value": 10,
+      "identity_provider": "auth0"
+    }
+  },
+  {
+    "name": "favourite item counts pizzas while favourite store counts visits",
+    "identity_provider": "auth0",
+    "orders": [
+      {
+        "id": "ord_1",
+        "placed_at": "2026-08-01T18:00:00.000Z",
+        "store": "Dublin Rathmines",
+        "items": [{ "name": "Margherita", "size": "Large", "qty": 10 }],
+        "total": 145
+      },
+      {
+        "id": "ord_2",
+        "placed_at": "2026-08-02T18:00:00.000Z",
+        "store": "Dublin Camden Street",
+        "items": [{ "name": "Garden Veg", "size": "Large", "qty": 1 }],
+        "total": 15
+      },
+      {
+        "id": "ord_3",
+        "placed_at": "2026-08-03T18:00:00.000Z",
+        "store": "Dublin Camden Street",
+        "items": [{ "name": "Garden Veg", "size": "Large", "qty": 1 }],
+        "total": 15
+      }
+    ],
+    "expected": {
+      "customer_segment": "Occasional",
+      "order_count": 3,
+      "favourite_item": "Margherita",
+      "favourite_store": "Dublin Camden Street",
+      "last_item_ordered": "Garden Veg",
+      "last_order_at": "2026-08-03T18:00:00.000Z",
+      "average_order_value": 58.33,
+      "identity_provider": "auth0"
+    }
+  },
+  {
+    "name": "an order line with no quantity still counts once",
+    "identity_provider": "auth0",
+    "orders": [
+      {
+        "id": "ord_1",
+        "placed_at": "2026-08-01T18:00:00.000Z",
+        "store": "Dublin Camden Street",
+        "items": [
+          { "name": "Margherita", "size": "Large" },
+          { "name": "Garlic bread" }
+        ],
+        "total": 19
+      },
+      {
+        "id": "ord_2",
+        "placed_at": "2026-08-02T18:00:00.000Z",
+        "store": "Dublin Camden Street",
+        "items": [{ "name": "Garlic bread", "qty": 3 }],
+        "total": 13.5
+      }
+    ],
+    "expected": {
+      "customer_segment": "Occasional",
+      "order_count": 2,
+      "favourite_item": "Garlic bread",
+      "favourite_store": "Dublin Camden Street",
+      "last_item_ordered": "Garlic bread",
+      "last_order_at": "2026-08-02T18:00:00.000Z",
+      "average_order_value": 16.25,
+      "identity_provider": "auth0"
+    }
+  }
+]
