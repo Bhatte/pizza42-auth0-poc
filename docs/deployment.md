@@ -4,10 +4,10 @@ Two Vercel projects build from this one repository. That is the ordinary Vercel
 monorepo arrangement, not a workaround: each project has its own **Root
 Directory**, and Vercel builds them independently from the same commit.
 
-| Project       | Root directory | Framework | Production URL                    |
-| ------------- | -------------- | --------- | --------------------------------- |
-| `pizza42-web` | `web`          | Vite      | https://pizza42.tejasbhat.com     |
-| `pizza42-api` | `api`          | Express   | https://pizza42-api.tejasbhat.com |
+| Project       | Root directory | Framework preset | Production URL                    |
+| ------------- | -------------- | ---------------- | --------------------------------- |
+| `pizza42-web` | `web`          | Vite             | https://pizza42.tejasbhat.com     |
+| `pizza42-api` | `api`          | Other            | https://pizza42-api.tejasbhat.com |
 
 Both are connected to `Bhatte/pizza42-auth0-poc` with production branch `main`.
 
@@ -20,6 +20,28 @@ correctly by CLI with Root Directory unset will therefore build from the
 repository root the moment Git is connected, and produce nothing useful.
 
 Set Root Directory before connecting Git, not after.
+
+## The API framework preset must be "Other", not "Express"
+
+`pizza42-api` serves through the directory convention: `api/api/index.js` is the
+serverless function, and [../api/vercel.json](../api/vercel.json) rewrites every
+path to it. Express is what the function happens to be written with; it is not
+how Vercel should find it.
+
+With the framework preset set to **Express**, Vercel additionally wires the root
+route to a server entrypoint it expects to find from `package.json`. This
+package has no `main`, and `src/index.js` calls `app.listen()`, which is a local
+development server rather than a handler. The root path therefore failed at the
+edge before reaching any function:
+
+```
+GET /            500  FUNCTION_INVOCATION_FAILED   x-vercel-id: lhr1::…
+GET /api/health  200                               x-vercel-id: lhr1::iad1::…
+```
+
+The missing second region in `x-vercel-id` is the diagnostic: `/api/health`
+reached a function in `iad1`, and `/` never left the edge. Setting the preset to
+**Other** leaves only the directory convention, and every path resolves.
 
 ## Commits must be attributable to a GitHub account
 
