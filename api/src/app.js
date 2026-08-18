@@ -3,6 +3,13 @@ import express from "express";
 import { rateLimit } from "express-rate-limit";
 import helmet from "helmet";
 
+import {
+  CLAIM_NAMESPACE,
+  CLAIMS,
+  MAX_LINE_QUANTITY,
+  MAX_ORDER_LINES,
+  REQUIRED_SCOPES,
+} from "./config/contracts.js";
 import { getPublicMenu } from "./config/menu.js";
 import { createAuthMiddleware } from "./middleware/auth.js";
 import { errorHandler } from "./middleware/errors.js";
@@ -61,12 +68,34 @@ export function createApp({
     response.status(200).json({
       service: "Pizza 42 Orders API",
       health: "/api/health",
+      meta: "/api/meta",
       menu: "/api/menu",
     });
   });
 
   app.get("/api/health", (_request, response) => {
     response.status(200).json({ status: "ok" });
+  });
+
+  // What this API will accept, published rather than described. Every value
+  // here is already visible in any token the tenant issues or in a rejection
+  // this API returns, so none of it is a secret; what it buys is that a
+  // reviewer can compare the audience their token carries against the audience
+  // this deployment enforces without being given a tenant dashboard login.
+  app.get("/api/meta", (_request, response) => {
+    response.status(200).json({
+      service: "Pizza 42 Orders API",
+      issuer: authConfig?.issuerBaseURL ?? null,
+      audience: authConfig?.audience ?? null,
+      token_signing_alg: "RS256",
+      required_scopes: REQUIRED_SCOPES,
+      claim_namespace: CLAIM_NAMESPACE,
+      verified_email_claim: CLAIMS.emailVerified,
+      verified_email_enforced_on: ["POST /api/orders"],
+      currency: "EUR",
+      max_line_quantity: MAX_LINE_QUANTITY,
+      max_order_lines: MAX_ORDER_LINES,
+    });
   });
 
   app.get("/api/menu", (_request, response) => {

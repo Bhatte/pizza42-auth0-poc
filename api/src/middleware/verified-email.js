@@ -7,9 +7,8 @@ export function requireVerifiedEmail(claimName) {
 
     response.status(403).json({
       error: "email_not_verified",
-      message: "A verified email address is required before placing an order.",
-      remediation:
-        "Check your inbox for the verification link, then refresh your session.",
+      message: "We just need to confirm your email before your first order.",
+      remediation: "Open the link in the email we sent, then check again.",
     });
   };
 }

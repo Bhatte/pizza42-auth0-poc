@@ -40,8 +40,67 @@ describe("GET /", () => {
     expect(response.body).toEqual({
       service: "Pizza 42 Orders API",
       health: "/api/health",
+      meta: "/api/meta",
       menu: "/api/menu",
     });
+  });
+});
+
+describe("GET /api/meta", () => {
+  it("publishes what the API enforces, so a reviewer needs no tenant login", async () => {
+    const response = await request(createApp({ authConfig })).get("/api/meta");
+
+    expect(response.status).toBe(200);
+    expect(response.body).toMatchObject({
+      issuer: issuer.issuer,
+      audience: "https://api.pizza42.com",
+      token_signing_alg: "RS256",
+      claim_namespace: "https://pizza42.com/",
+      verified_email_claim: "https://pizza42.com/email_verified",
+      verified_email_enforced_on: ["POST /api/orders"],
+    });
+    expect(response.body.required_scopes["POST /api/orders"]).toEqual([
+      "create:orders",
+    ]);
+  });
+
+  // A published limit that is not the enforced limit is worse than no published
+  // limit, because someone will quote it.
+  it("publishes the same quantity ceiling the order schema actually enforces", async () => {
+    const ordersRepository = {
+      appendForUser: async (_subject, order) => order,
+    };
+    const app = createApp({ authConfig, ordersRepository });
+    const ceiling = (await request(app).get("/api/meta")).body
+      .max_line_quantity;
+    const accessToken = await issuer.issueToken(ORDER_READY_TOKEN);
+
+    const atCeiling = await request(app)
+      .post("/api/orders")
+      .set("authorization", `Bearer ${accessToken}`)
+      .send({
+        store: "Dublin Camden Street",
+        items: [{ sku: "PIZ-MARG-L", qty: ceiling }],
+      });
+    const aboveCeiling = await request(app)
+      .post("/api/orders")
+      .set("authorization", `Bearer ${accessToken}`)
+      .send({
+        store: "Dublin Camden Street",
+        items: [{ sku: "PIZ-MARG-L", qty: ceiling + 1 }],
+      });
+
+    expect(atCeiling.status).toBe(201);
+    expect(aboveCeiling.status).toBe(400);
+  });
+
+  it("carries no credential or secret", async () => {
+    const response = await request(createApp({ authConfig })).get("/api/meta");
+
+    const body = JSON.stringify(response.body).toLowerCase();
+    for (const forbidden of ["secret", "client_id", "password"]) {
+      expect(body).not.toContain(forbidden);
+    }
   });
 });
 
@@ -223,10 +282,8 @@ describe("POST /api/orders authorization", () => {
       expect(response.status).toBe(403);
       expect(response.body).toEqual({
         error: "email_not_verified",
-        message:
-          "A verified email address is required before placing an order.",
-        remediation:
-          "Check your inbox for the verification link, then refresh your session.",
+        message: "We just need to confirm your email before your first order.",
+        remediation: "Open the link in the email we sent, then check again.",
       });
     },
   );
