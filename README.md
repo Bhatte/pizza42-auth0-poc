@@ -136,6 +136,7 @@ No hosted result is claimed until the corresponding row in [docs/test-matrix.md]
 - [Design decisions](docs/design-decisions.md)
 - [Known limitations](docs/known-limitations.md)
 - [Test matrix](docs/test-matrix.md)
+- [Deployment](docs/deployment.md)
 - [Contributing](CONTRIBUTING.md)
 
 Universal Login branding lives in the Auth0 tenant, not in this repository. It
