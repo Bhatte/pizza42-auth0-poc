@@ -55,11 +55,11 @@ Vercel – pizza42-web: failure :: Deployment was blocked
 Vercel – pizza42-api: failure :: GitHub couldn't verify an account for the commit
 ```
 
-This is easy to hit by accident. Git on Windows synthesises an identity from the
-machine account and domain when `user.email` is unset, which produced commits
-authored as `<machine-account>@<windows-domain>` — an address with no GitHub account behind it.
-Every such commit was blocked; manual CLI uploads kept working, which disguised
-the problem as "Vercel is not deploying".
+This is easy to hit by accident. Git on Windows synthesises an identity of the
+form `<machine-account>@<windows-domain>` when `user.email` is unset, and such
+an address has no GitHub account behind it. Every commit carrying one was
+blocked, while manual CLI uploads kept working — which disguised a rejected
+commit author as "Vercel is not deploying".
 
 The repository is configured to use the GitHub noreply address:
 
