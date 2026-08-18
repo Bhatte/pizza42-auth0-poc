@@ -49,7 +49,7 @@ flowchart LR
     API -->|"Protected identify event"| Marketing
 ```
 
-The browser expresses intent. The API establishes authority. ID tokens provide client identity context and are never accepted as API authorization; access tokens are kept in memory and raw token values are deliberately absent from the UI.
+The browser expresses intent. The API establishes authority. ID tokens provide client identity context and are never accepted as API authorization, and raw token values are deliberately absent from the UI. Token storage is a stated trade-off rather than a default: see [docs/known-limitations.md](docs/known-limitations.md).
 
 See [docs/architecture.md](docs/architecture.md) for the full trust-boundary walkthrough.
 
