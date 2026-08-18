@@ -54,23 +54,30 @@ login before the rehearsal.
 
 ## Verified by automated test only
 
-| Area          | Test                                          | Expected                                     | Status |
-| ------------- | --------------------------------------------- | -------------------------------------------- | ------ |
-| Authorization | Wrong audience / expired / foreign issuer     | 401                                          | Pass   |
-| Verification  | Unverified customer orders                    | 403 `email_not_verified`                     | Pass   |
-| Verification  | Verification claim absent or a string         | 403 — fails closed                           | Pass   |
-| Ordering      | Unknown SKU                                   | 400 `unknown_sku`                            | Pass   |
-| Ordering      | Prototype-chain SKU (`toString`, `__proto__`) | 400 `unknown_sku`                            | Pass   |
-| Ordering      | No order can persist a non-finite total       | Only the valid order is stored               | Pass   |
-| Ordering      | Invalid quantity, tampered price or total     | 400                                          | Pass   |
-| Ordering      | Basket cannot exceed the API quantity ceiling | Control stops at 20 and says so              | Pass   |
-| Privacy       | Another customer's orders or marketing events | Only token-subject data returned             | Pass   |
-| Resilience    | Non-JSON API response reaches the SPA         | Customer-readable message, not a parse error | Pass   |
-| Resilience    | Order history unreadable after a placed order | Confirmation stands, history says so         | Pass   |
-| Verification  | Refresh fails or returns still-unverified     | Distinct message, button re-enabled          | Pass   |
-| History       | Order placed without a new sign-in            | Appears in Recent orders immediately         | Pass   |
-| Marketing     | Browser-supplied traits ignored               | Traits derived server-side from `sub`        | Pass   |
-| Marketing     | Action and API derive identical profiles      | Shared golden fixtures agree in both suites  | Pass   |
+| Area          | Test                                          | Expected                                      | Status |
+| ------------- | --------------------------------------------- | --------------------------------------------- | ------ |
+| Authorization | Wrong audience / expired / foreign issuer     | 401                                           | Pass   |
+| Verification  | Unverified customer orders                    | 403 `email_not_verified`                      | Pass   |
+| Verification  | Verification claim absent or a string         | 403 — fails closed                            | Pass   |
+| Ordering      | Unknown SKU                                   | 400 `unknown_sku`                             | Pass   |
+| Ordering      | Prototype-chain SKU (`toString`, `__proto__`) | 400 `unknown_sku`                             | Pass   |
+| Ordering      | No order can persist a non-finite total       | Only the valid order is stored                | Pass   |
+| Ordering      | Invalid quantity, tampered price or total     | 400                                           | Pass   |
+| Ordering      | Basket cannot exceed the API quantity ceiling | Control stops at 20 and says so               | Pass   |
+| Privacy       | Another customer's orders or marketing events | Only token-subject data returned              | Pass   |
+| Resilience    | Non-JSON API response reaches the SPA         | Customer-readable message, not a parse error  | Pass   |
+| Resilience    | Order history unreadable after a placed order | Confirmation stands, history says so          | Pass   |
+| Verification  | Refresh fails or returns still-unverified     | Distinct message, button re-enabled           | Pass   |
+| History       | Order placed without a new sign-in            | Appears in Recent orders immediately          | Pass   |
+| Marketing     | Browser-supplied traits ignored               | Traits derived server-side from `sub`         | Pass   |
+| Marketing     | Action and API derive identical profiles      | Shared golden fixtures agree in both suites   | Pass   |
+| Contract      | `/api/meta` publishes the enforced ceiling    | Published limit accepted, one above rejected  | Pass   |
+| Contract      | `/api/meta` carries no credential or secret   | Payload free of secret material               | Pass   |
+| Evidence      | Probe presents the ID token as the credential | ID token sent, refusal reported as expected   | Pass   |
+| Evidence      | Probe reports an unexpected result honestly   | A 201 is marked unexpected, not as a pass     | Pass   |
+| Evidence      | Printed `curl` never contains a token value   | Credentials appear only as shell variables    | Pass   |
+| Evidence      | Request log stores no credential              | Entry names the credential kind, not a token  | Pass   |
+| Evidence      | Panel is absent until it is asked for         | No evidence in the ordering view until opened | Pass   |
 
 The foreign-issuer row is proved with a second test issuer that signs with its
 own key under the same `kid`, so it exercises signature verification rather
@@ -79,18 +86,20 @@ the Action alone and confirming both suites fail.
 
 ## Interactive browser validation
 
-| Area           | Test                                 | Expected                                    | Status                                     |
-| -------------- | ------------------------------------ | ------------------------------------------- | ------------------------------------------ |
-| Authentication | Database signup and login            | Customer reaches the SPA                    | Pass: live tenant                          |
-| Authentication | Google login                         | Customer reaches the SPA                    | Pass: custom Google keys                   |
-| Authentication | Password reset                       | Reset completes and login succeeds          | Not run                                    |
-| Verification   | Unverified customer signs in         | Sign-in succeeds, ordering blocked          | Sign-in observed; API block automated      |
-| Verification   | Fresh token after verifying          | Cache bypass returns claim `true`           | Automated; capture again after reset       |
-| Ordering       | Verified customer places an order    | 201 with authoritative total                | Pass: five live orders                     |
-| Profile        | Order lands in `app_metadata.orders` | Order present in the Auth0 profile          | Pass: inspected live                       |
-| Claims         | Fresh login after ordering           | ID token contains order history and profile | Action deployed; capture again after reset |
-| Marketing      | Derived traits for a seeded account  | `favourite_store`, `last_item_ordered` set  | Automated; reseed before rehearsal         |
-| Deployment     | Second device and network            | Hosted login and order path succeeds        | Not run                                    |
+| Area           | Test                                  | Expected                                      | Status                                     |
+| -------------- | ------------------------------------- | --------------------------------------------- | ------------------------------------------ |
+| Authentication | Database signup and login             | Customer reaches the SPA                      | Pass: live tenant                          |
+| Authentication | Google login                          | Customer reaches the SPA                      | Pass: custom Google keys                   |
+| Authentication | Password reset                        | Reset completes and login succeeds            | Not run                                    |
+| Verification   | Unverified customer signs in          | Sign-in succeeds, ordering blocked            | Sign-in observed; API block automated      |
+| Verification   | Fresh token after verifying           | Cache bypass returns claim `true`             | Automated; capture again after reset       |
+| Ordering       | Verified customer places an order     | 201 with authoritative total                  | Pass: five live orders                     |
+| Profile        | Order lands in `app_metadata.orders`  | Order present in the Auth0 profile            | Pass: inspected live                       |
+| Claims         | Fresh login after ordering            | ID token contains order history and profile   | Action deployed; capture again after reset |
+| Evidence       | Probes run against the deployed API   | Eight refusals, none stored, no order created | Not run: run once after redeploy           |
+| Evidence       | Token audience matches the deployment | Panel reports agreement on the hosted origin  | Not run: verify after redeploy             |
+| Marketing      | Derived traits for a seeded account   | `favourite_store`, `last_item_ordered` set    | Automated; reseed before rehearsal         |
+| Deployment     | Second device and network             | Hosted login and order path succeeds          | Not run                                    |
 
 The Google connection now uses Pizza 42-owned Google Cloud OAuth credentials.
 The tenant's four validation identities and five orders were deleted on 17

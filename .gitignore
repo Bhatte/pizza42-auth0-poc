@@ -5,6 +5,10 @@
 /Panel Members (For Sharing).docx
 /Pizza42_Master_Build_and_Panel_Execution_Spec_v3.md
 
+# Rehearsal notes for the panel. SECURITY.md forbids committing internal
+# briefing documents, and a demo script with anticipated questions is one.
+/demo-prep/
+
 # Dependencies and build output
 node_modules/
 dist/

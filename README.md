@@ -26,8 +26,34 @@ Pizza 42 is a security-focused Auth0 proof of concept for a customer ordering jo
 - Successful orders are appended to Auth0 `app_metadata.orders` using a least-privilege Management API client.
 - A Post-Login Action adds order history and a derived customer profile to namespaced ID-token claims.
 - A protected, customer-scoped endpoint produces a Segment-shaped demonstration event without making ordering depend on a marketing destination.
+- Every one of the above can be checked from the running application, without a tenant login, an intercepting proxy or a browser console.
 
 The requirements-to-evidence mapping is in [docs/requirements.md](docs/requirements.md).
+
+## Behind the counter
+
+The storefront carries its own evidence panel, opened from the app header or
+by pressing `?` once signed in. It is not part of the ordering journey and is
+never open by default; it exists so that the claims, the refusals and the
+derived marketing profile can be examined beside the order they describe
+rather than in four other windows.
+
+| Tab      | What it answers                                                                                        | Replaces                       |
+| -------- | ------------------------------------------------------------------------------------------------------ | ------------------------------ |
+| Session  | What each token asserts, and whether its audience matches the audience this API deployment enforces    | Browser devtools, jwt.io       |
+| Prove it | Eight requests designed to be refused, run live against the deployed API with the real status and body | Postman, an intercepting proxy |
+| Insight  | The derived marketing profile, and the Action's signed copy beside the API's live one                  | The tenant user record         |
+| Network  | Every call the page has made, and which credential each one presented                                  | The devtools network tab       |
+
+Every probe on the Prove it tab is a rejection. Each is refused in the
+authentication, verification or schema layer, all of which sit in front of the
+profile write, so running the whole set stores nothing. Each shows the
+equivalent `curl` with the credential as a shell variable, so a reviewer can
+reproduce it from their own terminal rather than take the page's word for it.
+
+The panel decodes tokens for reading and says so. Decoding is not verification:
+the API re-reads every value from a signature it checks itself, and nothing the
+panel displays is trusted by anything.
 
 ## Architecture
 
@@ -49,7 +75,7 @@ flowchart LR
     API -->|"Protected identify event"| Marketing
 ```
 
-The browser expresses intent. The API establishes authority. ID tokens provide client identity context and are never accepted as API authorization, and raw token values are deliberately absent from the UI. Token storage is a stated trade-off rather than a default: see [docs/known-limitations.md](docs/known-limitations.md).
+The browser expresses intent. The API establishes authority. ID tokens provide client identity context and are never accepted as API authorization, and no raw token value is ever printed on screen. Token storage is a stated trade-off rather than a default: see [docs/known-limitations.md](docs/known-limitations.md).
 
 See [docs/architecture.md](docs/architecture.md) for the full trust-boundary walkthrough.
 
@@ -58,7 +84,7 @@ See [docs/architecture.md](docs/architecture.md) for the full trust-boundary wal
 ```text
 auth0/  Post-Login Action, order seed script, tests, and tenant configuration
 api/    Express API, domain rules, Auth0 Management API adapter, and tests
-web/    React/Vite SPA and interaction tests
+web/    React/Vite SPA, the Behind the counter evidence panel, and tests
 docs/   requirements, architecture, decisions, limitations, and evidence matrix
 ```
 
