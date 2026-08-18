@@ -27,3 +27,7 @@ coverage/
 .vscode/
 .claude/
 /.config/
+
+# Vercel CLI project links. These carry project and organisation identifiers
+# for a specific account and must not be committed.
+.vercel/
