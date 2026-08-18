@@ -1,3 +1,5 @@
+import { createRequestLog } from "./request-log.js";
+
 export class ApiError extends Error {
   constructor({ code, message, remediation, status }) {
     super(message);
@@ -15,8 +17,16 @@ const NON_JSON_MESSAGES = {
   504: "The kitchen took too long to answer. Your basket has not been changed.",
 };
 
-export function createApiClient({ baseUrl, fetch: fetchRequest = fetch }) {
+export function createApiClient({
+  baseUrl,
+  fetch: fetchRequest = fetch,
+  log = createRequestLog(),
+}) {
   const normalizedBaseUrl = baseUrl.replace(/\/$/, "");
+  // Every call the client makes goes through the log, including the evidence
+  // drawer's probes, so the recorded conversation is the whole conversation
+  // rather than the part someone remembered to instrument.
+  const request = log.instrument(fetchRequest);
 
   async function parseResponse(response) {
     let payload;
@@ -49,19 +59,26 @@ export function createApiClient({ baseUrl, fetch: fetchRequest = fetch }) {
   }
 
   return {
+    baseUrl: normalizedBaseUrl,
+    request,
+    log,
     async getMenu() {
-      const response = await fetchRequest(`${normalizedBaseUrl}/api/menu`);
+      const response = await request(`${normalizedBaseUrl}/api/menu`);
+      return parseResponse(response);
+    },
+    async getMeta() {
+      const response = await request(`${normalizedBaseUrl}/api/meta`);
       return parseResponse(response);
     },
     async getOrders(accessToken) {
-      const response = await fetchRequest(`${normalizedBaseUrl}/api/orders`, {
+      const response = await request(`${normalizedBaseUrl}/api/orders`, {
         headers: { authorization: `Bearer ${accessToken}` },
       });
       const payload = await parseResponse(response);
       return payload.orders;
     },
     async createOrder(order, accessToken) {
-      const response = await fetchRequest(`${normalizedBaseUrl}/api/orders`, {
+      const response = await request(`${normalizedBaseUrl}/api/orders`, {
         method: "POST",
         headers: {
           authorization: `Bearer ${accessToken}`,
@@ -72,7 +89,7 @@ export function createApiClient({ baseUrl, fetch: fetchRequest = fetch }) {
       return parseResponse(response);
     },
     async identifyCustomer(accessToken) {
-      const response = await fetchRequest(
+      const response = await request(
         `${normalizedBaseUrl}/api/marketing/identify`,
         {
           method: "POST",

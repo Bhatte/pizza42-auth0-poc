@@ -1,9 +1,7 @@
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
-const formatEuro = new Intl.NumberFormat("en-IE", {
-  style: "currency",
-  currency: "EUR",
-});
+import { EvidenceDrawer } from "./EvidenceDrawer.jsx";
+import { formatEuro } from "./lib/format.js";
 const EMAIL_VERIFIED_CLAIM = "https://pizza42.com/email_verified";
 const ORDERS_CLAIM = "https://pizza42.com/orders";
 const CUSTOMER_PROFILE_CLAIM = "https://pizza42.com/customer_profile";
@@ -93,14 +91,13 @@ function DishPhoto({ sku, sizes, eager = false }) {
   );
 }
 
-function Colophon({ children }) {
+function Colophon() {
   return (
     <footer className="colophon">
       <div className="colophon-shops">
         <p>Camden Street / Rathmines / Smithfield</p>
         <p>Collection until 23:00</p>
       </div>
-      {children}
       <p className="colophon-note">
         Pizza 42 sign-in proof of concept. No payment is taken and no order is
         sent to a kitchen.
@@ -298,6 +295,37 @@ function OrderingExperience({ auth, api }) {
   const [isVerified, setIsVerified] = useState(
     auth.idTokenClaims?.[EMAIL_VERIFIED_CLAIM] === true,
   );
+  const [isDrawerOpen, setDrawerOpen] = useState(false);
+  const drawerToggle = useRef(null);
+
+  const closeDrawer = useCallback(() => {
+    setDrawerOpen(false);
+    // Sending focus back where it came from, rather than to the top of the
+    // document, is the difference between a panel and a trapdoor.
+    drawerToggle.current?.focus();
+  }, []);
+
+  useEffect(() => {
+    function onKeyDown(event) {
+      if (event.key !== "?") return;
+      // Never steal a keystroke someone is typing into a control. There is no
+      // text input in the storefront today, and this is what keeps that from
+      // becoming a bug the first time there is one.
+      const target = event.target;
+      if (
+        target instanceof HTMLElement &&
+        (target.isContentEditable ||
+          ["INPUT", "TEXTAREA", "SELECT"].includes(target.tagName))
+      ) {
+        return;
+      }
+      event.preventDefault();
+      setDrawerOpen((open) => !open);
+    }
+
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, []);
 
   const menu = menuState.status === "ready" ? menuState.menu : null;
   // Derived, not stored: the first store is a fallback until the customer picks
@@ -352,7 +380,24 @@ function OrderingExperience({ auth, api }) {
   const claimedOrders = Array.isArray(auth.idTokenClaims?.[ORDERS_CLAIM])
     ? auth.idTokenClaims[ORDERS_CLAIM]
     : [];
-  const customerProfile = auth.idTokenClaims?.[CUSTOMER_PROFILE_CLAIM] ?? {};
+  const customerProfile = useMemo(
+    () => auth.idTokenClaims?.[CUSTOMER_PROFILE_CLAIM] ?? {},
+    [auth.idTokenClaims],
+  );
+
+  const insight = useMemo(
+    () => ({
+      claimedProfile: customerProfile,
+      liveProfile:
+        marketingState.status === "ready" ? marketingState.event.traits : null,
+      marketingStatus: marketingState.status,
+      claimedOrderCount: claimedOrders.length,
+      liveOrderCount:
+        historyState.status === "ready" ? historyState.orders.length : null,
+      event: marketingState.status === "ready" ? marketingState.event : null,
+    }),
+    [customerProfile, marketingState, claimedOrders.length, historyState],
+  );
 
   function changeQuantity(sku, amount) {
     setBasket((current) => {
@@ -388,15 +433,26 @@ function OrderingExperience({ auth, api }) {
   }
 
   return (
-    <main className="app-shell">
+    <main className={`app-shell${isDrawerOpen ? " with-drawer" : ""}`}>
       <header className="app-header">
         <div className="header-inner">
           <Brand />
           <div className="account-actions">
+            <button
+              className="counter-toggle"
+              type="button"
+              ref={drawerToggle}
+              aria-expanded={isDrawerOpen}
+              onClick={() => setDrawerOpen((open) => !open)}
+              title="Behind the counter — press ?"
+            >
+              <InspectIcon />
+              <span>Behind the counter</span>
+            </button>
             {isVerified ? null : (
               <span className="verification-pill">
                 <MailIcon />
-                Email not confirmed
+                Confirm your email
               </span>
             )}
             <div className="account-copy">
@@ -469,7 +525,7 @@ function OrderingExperience({ auth, api }) {
             {basketItems.length === 0 ? (
               <div className="empty-basket">
                 <PizzaSliceIcon />
-                <p>Nothing on the docket yet.</p>
+                <p>Nothing in your order yet.</p>
                 <span>Add something from tonight&apos;s menu.</span>
               </div>
             ) : (
@@ -545,17 +601,18 @@ function OrderingExperience({ auth, api }) {
 
         <OrderHistory state={historyState} />
 
-        <Colophon>
-          <SessionDetails
-            auth={auth}
-            isVerified={isVerified}
-            claimedOrders={claimedOrders}
-            historyState={historyState}
-            customerProfile={customerProfile}
-            marketingState={marketingState}
-          />
-        </Colophon>
+        <Colophon />
       </div>
+
+      <EvidenceDrawer
+        open={isDrawerOpen}
+        onClose={closeDrawer}
+        api={api}
+        auth={auth}
+        isVerified={isVerified}
+        store={store}
+        insight={insight}
+      />
     </main>
   );
 }
@@ -566,7 +623,7 @@ function OrderingExperience({ auth, api }) {
 // Saying nothing in either case leaves the button looking broken.
 const REFRESH_FEEDBACK = {
   "still-unverified":
-    "That address still is not confirmed. Open the link in the email, then try again.",
+    "We're not seeing it yet. Open the link in the email, then try again.",
   failed:
     "We could not check your account just now. Please try again in a moment.",
 };
@@ -584,10 +641,10 @@ function VerificationNotice({ email, errorMessage, onRefresh }) {
         <MailIcon />
       </div>
       <div className="notice-copy">
-        <h2 id="verification-heading">Confirm your email to order</h2>
+        <h2 id="verification-heading">One step before your first order</h2>
         <p>
           {errorMessage ??
-            `Browse all you like. Before your first order, open the link we sent to ${email ?? "your inbox"}.`}
+            `We've sent a confirmation link to ${email ?? "your inbox"}. Open it, then we'll get your order in.`}
         </p>
         <p className="notice-feedback" role="status" aria-live="polite">
           {feedback ? REFRESH_FEEDBACK[feedback] : ""}
@@ -665,73 +722,12 @@ function OrderHistoryBody({ state }) {
   );
 }
 
-function SessionDetails({
-  auth,
-  isVerified,
-  claimedOrders,
-  historyState,
-  customerProfile,
-  marketingState,
-}) {
+function InspectIcon() {
   return (
-    <details className="session-details">
-      <summary>Session details</summary>
-      <div className="session-content">
-        <dl>
-          <div>
-            <dt>Account</dt>
-            <dd>{auth.idTokenClaims?.sub ?? "Unavailable"}</dd>
-          </div>
-          <div>
-            <dt>Email confirmed</dt>
-            <dd>{isVerified ? "Yes" : "Not yet"}</dd>
-          </div>
-          <div>
-            <dt>Orders in this ID token</dt>
-            <dd>{claimedOrders.length}</dd>
-          </div>
-          <div>
-            <dt>Orders on file now</dt>
-            <dd>
-              {historyState.status === "ready"
-                ? historyState.orders.length
-                : "Unavailable"}
-            </dd>
-          </div>
-        </dl>
-        <p className="session-note">
-          Sign-in is handled by Auth0. The ordering API checks the access token,
-          its scope and this account&apos;s confirmation state before the
-          kitchen sees anything. Token values are never shown here.
-        </p>
-        <p className="session-note">
-          The two order counts differ after you order and agree again after your
-          next sign-in. The ID token is a signed statement about who you were at
-          login, so it cannot know about an order placed since; the count on
-          file comes from the orders API, which reads the profile live. Identity
-          answers who you are, not what you have bought.
-        </p>
-        <div className="session-profile">
-          <p className="session-profile-label">
-            Customer profile / simulated Segment destination
-          </p>
-          {marketingState.status === "unavailable" ? (
-            <p className="session-note">
-              Destination unavailable. Ordering is unaffected.
-            </p>
-          ) : null}
-          <pre aria-label="Derived customer profile">
-            {JSON.stringify(
-              marketingState.status === "ready"
-                ? marketingState.event.traits
-                : customerProfile,
-              null,
-              2,
-            )}
-          </pre>
-        </div>
-      </div>
-    </details>
+    <svg viewBox="0 0 20 20" aria-hidden="true">
+      <rect x="2.5" y="3.5" width="15" height="13" rx="2" />
+      <path d="M12.5 3.5v13" />
+    </svg>
   );
 }
 
