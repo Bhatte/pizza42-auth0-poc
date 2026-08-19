@@ -2,6 +2,7 @@ import { randomUUID } from "node:crypto";
 
 import { z } from "zod";
 
+import { MAX_LINE_QUANTITY, MAX_ORDER_LINES } from "../config/contracts.js";
 import { stores } from "../config/menu.js";
 
 const requestedOrderSchema = z
@@ -12,12 +13,12 @@ const requestedOrderSchema = z
         z
           .object({
             sku: z.string().min(1),
-            qty: z.number().int().min(1).max(20),
+            qty: z.number().int().min(1).max(MAX_LINE_QUANTITY),
           })
           .strict(),
       )
       .min(1)
-      .max(20),
+      .max(MAX_ORDER_LINES),
   })
   .strict();
 

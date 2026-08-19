@@ -24,6 +24,11 @@ function createAuthenticatedAuth(overrides = {}) {
     },
     logout: vi.fn(),
     getAccessTokenSilently: vi.fn().mockResolvedValue("access-token"),
+    // Not real JWTs. The drawer falls back to the SDK's decoded claims when a
+    // token will not decode, which is exactly the path these tests render.
+    getRawTokens: vi
+      .fn()
+      .mockResolvedValue({ accessToken: "access-token", idToken: "id-token" }),
     refreshVerification: vi.fn().mockResolvedValue(true),
     ...overrides,
   };
@@ -56,7 +61,25 @@ function createApi() {
       userId: "auth0|customer-42",
       traits: { customer_segment: "New Customer" },
     }),
+    getMeta: vi.fn().mockResolvedValue({
+      service: "Pizza 42 Orders API",
+      issuer: "https://tenant.eu.auth0.com/",
+      audience: "https://api.pizza42.com",
+      token_signing_alg: "RS256",
+      required_scopes: { "POST /api/orders": ["create:orders"] },
+      claim_namespace: "https://pizza42.com/",
+      verified_email_claim: "https://pizza42.com/email_verified",
+      verified_email_enforced_on: ["POST /api/orders"],
+      currency: "EUR",
+      max_line_quantity: 20,
+      max_order_lines: 20,
+    }),
   };
+}
+
+async function openDrawer(user, tab) {
+  await user.click(screen.getByRole("button", { name: "Behind the counter" }));
+  if (tab) await user.click(screen.getByRole("tab", { name: tab }));
 }
 
 describe("Pizza 42 ordering experience", () => {
@@ -142,7 +165,7 @@ describe("Pizza 42 ordering experience", () => {
     render(<Pizza42App auth={auth} api={createApi()} />);
 
     const notice = screen
-      .getByRole("heading", { name: "Confirm your email to order" })
+      .getByRole("heading", { name: "One step before your first order" })
       .closest("section");
     expect(notice).toHaveTextContent(/maya@example\.com/);
 
@@ -163,7 +186,7 @@ describe("Pizza 42 ordering experience", () => {
     [
       "the address is still unconfirmed",
       { refreshVerification: vi.fn().mockResolvedValue(false) },
-      /still is not confirmed/i,
+      /not seeing it yet/i,
     ],
   ])(
     "tells the customer what happened when %s",
@@ -270,7 +293,7 @@ describe("Pizza 42 ordering experience", () => {
     const api = createApi();
     api.createOrder.mockRejectedValue({
       code: "email_not_verified",
-      message: "A verified email address is required before placing an order.",
+      message: "We just need to confirm your email before your first order.",
     });
 
     render(<Pizza42App auth={auth} api={api} />);
@@ -284,12 +307,12 @@ describe("Pizza 42 ordering experience", () => {
 
     expect(
       await screen.findByRole("heading", {
-        name: "Confirm your email to order",
+        name: "One step before your first order",
       }),
     ).toBeInTheDocument();
     expect(
       screen.getByText(
-        "A verified email address is required before placing an order.",
+        "We just need to confirm your email before your first order.",
       ),
     ).toBeInTheDocument();
   });
@@ -363,31 +386,53 @@ describe("Pizza 42 ordering experience", () => {
     expect(screen.queryByText(/nothing yet/i)).not.toBeInTheDocument();
   });
 
-  it("keeps identity detail behind a quiet, collapsed disclosure", async () => {
+  it("keeps identity evidence out of the ordering view until it is asked for", async () => {
     const user = userEvent.setup();
-    const auth = createAuthenticatedAuth({
-      idTokenClaims: {
-        sub: "auth0|customer-42",
-        "https://pizza42.com/email_verified": true,
-        "https://pizza42.com/orders": [],
-        "https://pizza42.com/customer_profile": {
-          customer_segment: "Returning Regular",
-          favourite_store: "Dublin Camden Street",
-          last_item_ordered: "Margherita",
-        },
-      },
-    });
 
-    render(<Pizza42App auth={auth} api={createApi()} />);
+    render(<Pizza42App auth={createAuthenticatedAuth()} api={createApi()} />);
 
-    const summary = screen.getByText("Session details");
-    expect(summary.closest("details")).not.toHaveAttribute("open");
+    expect(
+      screen.queryByRole("complementary", { name: "Behind the counter" }),
+    ).not.toBeInTheDocument();
+    expect(screen.queryByText("auth0|customer-42")).not.toBeInTheDocument();
 
-    await user.click(summary);
+    await openDrawer(user);
 
-    expect(summary.closest("details")).toHaveAttribute("open");
-    expect(screen.getByText("auth0|customer-42")).toBeInTheDocument();
-    expect(screen.queryByText("access-token")).not.toBeInTheDocument();
+    expect(
+      screen.getByRole("complementary", { name: "Behind the counter" }),
+    ).toBeInTheDocument();
+    expect(await screen.findByText("auth0|customer-42")).toBeInTheDocument();
+  });
+
+  it("opens and closes the evidence panel from the keyboard", async () => {
+    const user = userEvent.setup();
+
+    render(<Pizza42App auth={createAuthenticatedAuth()} api={createApi()} />);
+
+    await user.keyboard("?");
+    expect(
+      screen.getByRole("complementary", { name: "Behind the counter" }),
+    ).toBeInTheDocument();
+
+    await user.keyboard("{Escape}");
+    expect(
+      screen.queryByRole("complementary", { name: "Behind the counter" }),
+    ).not.toBeInTheDocument();
+  });
+
+  it("compares the token audience against the audience the API enforces", async () => {
+    const user = userEvent.setup();
+
+    render(<Pizza42App auth={createAuthenticatedAuth()} api={createApi()} />);
+
+    await openDrawer(user);
+
+    // There is no real JWT in this test, so the token side is unreadable. The
+    // panel must report that honestly rather than claim a match it cannot see.
+    expect(
+      await screen.findByText(/audience does not agree/i),
+    ).toBeInTheDocument();
+    expect(screen.getByText("RS256")).toBeInTheDocument();
   });
 
   it("surfaces the marketing traits the customer briefing asked for", async () => {
@@ -404,11 +449,19 @@ describe("Pizza 42 ordering experience", () => {
 
     render(<Pizza42App auth={createAuthenticatedAuth()} api={api} />);
 
-    await user.click(await screen.findByText("Session details"));
+    await openDrawer(user, "Insight");
 
-    const profile = await screen.findByLabelText("Derived customer profile");
-    expect(profile.textContent).toContain("favourite_store");
-    expect(profile.textContent).toContain("last_item_ordered");
+    // Each trait appears twice on this tab: once in the summary grid, and once
+    // in the row comparing the signed claim against the live profile.
+    expect((await screen.findAllByText("Favourite store")).length).toBe(2);
+    expect(screen.getAllByText("Last item ordered").length).toBe(2);
+    expect(screen.getAllByText("Dublin Camden Street").length).toBeGreaterThan(
+      0,
+    );
+
+    const payload = screen.getByLabelText("Simulated marketing payload");
+    expect(payload.textContent).toContain("favourite_store");
+    expect(payload.textContent).toContain("last_item_ordered");
   });
 
   it("keeps ordering available when the optional marketing simulation fails", async () => {
@@ -428,9 +481,9 @@ describe("Pizza 42 ordering experience", () => {
       screen.getByRole("button", { name: /place order.*€14\.50/i }),
     ).toBeEnabled();
 
-    await user.click(screen.getByText("Session details"));
+    await openDrawer(user, "Insight");
     expect(
-      await screen.findByText(/destination unavailable\. ordering is/i),
+      await screen.findByText(/destination did not answer/i),
     ).toBeInTheDocument();
   });
 });

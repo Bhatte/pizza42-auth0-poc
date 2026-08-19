@@ -23,7 +23,7 @@ described an operations dashboard rather than food. Two rules replace it:
 The guest storefront is expressive: full-bleed hero, large type, motion. The
 authenticated ordering view shares the exact palette but drops to a dense,
 quiet, task-shaped layout, because at that point the order is the job. Identity
-evidence stays behind the Session details disclosure.
+evidence lives in the Behind the counter panel, which the customer never opens.
 
 ## Design tokens
 
@@ -133,6 +133,33 @@ borders, no shadows, no card. The photograph is the object.
 Ordering: the same dishes as 88px square thumbnails in dense rows with a hairline
 between them, price inline, Add button on the right.
 
+### Behind the counter
+
+The presenter's surface, and the successor to the old Session details
+disclosure. A side panel, opened from a quiet control in the app header or by
+pressing `?`, carrying two tabs: the claims in each token side by side, and the
+derived marketing profile beside the copy the Action signed at login.
+
+Three rules keep it from turning the storefront into a dashboard:
+
+1. **It is never open by default and never part of the ordering flow.** A hungry
+   customer can use this site for a year without discovering it exists.
+2. **Above 72rem the page steps aside rather than being covered**, because the
+   panel's whole reason to exist is that an order and the evidence for that
+   order can be looked at together. Below that it takes the screen.
+3. **It shares the storefront palette exactly.** It should read as this product
+   with a panel pulled out, not a debug console bolted to a pizza shop. Ember
+   still marks actions only; evidence uses `flame` and the state colours,
+   because a panel where everything glows tells you nothing.
+
+Values in the panel are read, never asserted: it shows what a token says and
+what the API publishes, and neither is a check anything depends on.
+
+The panel states values and does not explain them. Its reader already knows
+what an audience claim is, and a caption telling them would read as a lecture.
+Where something genuinely needs saying — why two columns disagree — one line
+says it. Row labels carry no commentary.
+
 ### Order summary
 
 Ember top edge on a raised panel, sticky above 62rem and in flow below it.
@@ -172,6 +199,10 @@ Empty, active, submitting, success and error states are all inline.
   taken and no order reaches a kitchen.
 - Buttons name their result: Start your order, Create an account, Place order,
   I've confirmed it.
+- Copy never scolds the customer for the state their account is in, and never
+  grants them permission to use the site. An unconfirmed email is one step left
+  in a process, not a failing: "One step before your first order", not "Confirm
+  your email to order" over "Browse all you like".
 
 ## Avoid
 
@@ -185,6 +216,8 @@ Empty, active, submitting, success and error states are all inline.
 - Gradient text, glass panels, repeated icon cards, generic SaaS sections.
 - Bright red-and-yellow fast-food branding.
 - Security-dashboard imagery, token visualisations, or raw tokens anywhere in
-  the customer journey.
+  the customer journey. Behind the counter is not the customer journey: it may
+  show decoded claims and offer a token to the clipboard, and it is the only
+  surface that may. A raw token is still never printed on screen.
 - Ember as decoration. It marks the primary action, the price chip, the service
   rail and the basket edge. Nothing else.

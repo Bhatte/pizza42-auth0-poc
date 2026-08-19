@@ -15,7 +15,7 @@ const NON_JSON_MESSAGES = {
   504: "The kitchen took too long to answer. Your basket has not been changed.",
 };
 
-export function createApiClient({ baseUrl, fetch: fetchRequest = fetch }) {
+export function createApiClient({ baseUrl, fetch: request = fetch }) {
   const normalizedBaseUrl = baseUrl.replace(/\/$/, "");
 
   async function parseResponse(response) {
@@ -50,18 +50,22 @@ export function createApiClient({ baseUrl, fetch: fetchRequest = fetch }) {
 
   return {
     async getMenu() {
-      const response = await fetchRequest(`${normalizedBaseUrl}/api/menu`);
+      const response = await request(`${normalizedBaseUrl}/api/menu`);
+      return parseResponse(response);
+    },
+    async getMeta() {
+      const response = await request(`${normalizedBaseUrl}/api/meta`);
       return parseResponse(response);
     },
     async getOrders(accessToken) {
-      const response = await fetchRequest(`${normalizedBaseUrl}/api/orders`, {
+      const response = await request(`${normalizedBaseUrl}/api/orders`, {
         headers: { authorization: `Bearer ${accessToken}` },
       });
       const payload = await parseResponse(response);
       return payload.orders;
     },
     async createOrder(order, accessToken) {
-      const response = await fetchRequest(`${normalizedBaseUrl}/api/orders`, {
+      const response = await request(`${normalizedBaseUrl}/api/orders`, {
         method: "POST",
         headers: {
           authorization: `Bearer ${accessToken}`,
@@ -72,7 +76,7 @@ export function createApiClient({ baseUrl, fetch: fetchRequest = fetch }) {
       return parseResponse(response);
     },
     async identifyCustomer(accessToken) {
-      const response = await fetchRequest(
+      const response = await request(
         `${normalizedBaseUrl}/api/marketing/identify`,
         {
           method: "POST",

@@ -11,7 +11,10 @@ const EMAIL_VERIFIED_CLAIM = "https://pizza42.com/email_verified";
 export default function App() {
   const auth0 = useAuth0();
   const api = useMemo(
-    () => createApiClient({ baseUrl: webConfig.apiBaseUrl }),
+    () =>
+      createApiClient({
+        baseUrl: webConfig.apiBaseUrl,
+      }),
     [],
   );
   const auth = useMemo(
@@ -26,6 +29,16 @@ export default function App() {
           logoutParams: { returnTo: window.location.origin },
         }),
       getAccessTokenSilently: auth0.getAccessTokenSilently,
+      // Both raw tokens, for the evidence drawer alone. The storefront never
+      // needs them: it sends the access token to the API and reads claims from
+      // the SDK's decoded user object.
+      async getRawTokens() {
+        const [accessToken, idClaims] = await Promise.all([
+          auth0.getAccessTokenSilently(),
+          auth0.getIdTokenClaims(),
+        ]);
+        return { accessToken, idToken: idClaims?.__raw ?? null };
+      },
       async refreshVerification() {
         const accessToken = await auth0.getAccessTokenSilently({
           cacheMode: "off",

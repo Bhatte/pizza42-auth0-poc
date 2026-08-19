@@ -28,7 +28,9 @@ sequenceDiagram
 
 The access token authorizes calls to the Pizza 42 API. The API checks its signature, issuer, audience, expiry, and `create:orders` permission. The ID token tells the SPA about the signed-in customer and carries the exercise-specific order-history and customer-profile claims. An ID token is not accepted as API authorization.
 
-The ID token is a signed statement about the customer at the moment of login, so it cannot describe an order placed since. The storefront's "Recent orders" list therefore reads `GET /api/orders` under `read:orders`, and the order-history claim is displayed separately in Session details as the requirement 10 artefact. Both counts are shown together deliberately: they diverge after an order and agree again after the next login, which is the clearest available demonstration that identity carries assertions rather than live application state.
+The ID token is a signed statement about the customer at the moment of login, so it cannot describe an order placed since. The storefront's "Recent orders" list therefore reads `GET /api/orders` under `read:orders`, and the order-history claim is displayed separately in the Behind the counter panel as the requirement 10 artefact. Both counts are shown together deliberately: they diverge after an order and agree again after the next login, which is the clearest available demonstration that identity carries assertions rather than live application state.
+
+The panel's Insight tab makes the same point trait by trait, showing the profile the Post-Login Action signed into the ID token beside the profile the API derives live, and marking the rows that have moved. Divergence there is the expected behaviour being demonstrated, not a fault being reported.
 
 Custom claims use the collision-resistant HTTPS namespace `https://pizza42.com/`, frozen in [../CONTEXT.md](../CONTEXT.md) and shared by the Action, the API and the SPA.
 
@@ -45,6 +47,23 @@ The orders service uses a machine-to-machine credential with `read:users` and `u
 The POC exposes `POST /api/marketing/identify` and `GET /api/marketing/events` behind the same access-token validation and `read:orders` permission. The server ignores browser-supplied traits, reads the current token subject's order history, derives a Segment-shaped identify event, and keeps a bounded in-memory demonstration history. Reads are filtered by the access-token subject.
 
 The SPA invokes the simulation independently of menu loading and checkout and treats failure as non-blocking. The production design is asynchronous: Pizza 42 domain events flow through an event bus or supported Auth0 log stream, then into Segment or Braze. Login and checkout continue if those systems are unavailable.
+
+## Published configuration
+
+`GET /api/meta` is public and unauthenticated. It returns the issuer and
+audience this deployment accepts, the signing algorithm, the scope required per
+operation, the claim namespace, the claim and route where verified email is
+enforced, and the order quantity ceilings.
+
+None of it is secret. Every value is already visible in any token the tenant
+issues or in a rejection this API returns, and an OIDC provider publishes the
+equivalent at its discovery endpoint. What it buys is that a reviewer can
+compare the audience their token carries against the audience this deployment
+enforces without being handed a tenant dashboard login, and that the published
+quantity ceiling is read from the same constant the order schema enforces
+rather than being a number in a document that can drift. A test asserts both:
+that the published ceiling is the enforced ceiling, and that the payload
+carries no credential.
 
 ## HTTP boundary controls
 

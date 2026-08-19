@@ -26,8 +26,27 @@ Pizza 42 is a security-focused Auth0 proof of concept for a customer ordering jo
 - Successful orders are appended to Auth0 `app_metadata.orders` using a least-privilege Management API client.
 - A Post-Login Action adds order history and a derived customer profile to namespaced ID-token claims.
 - A protected, customer-scoped endpoint produces a Segment-shaped demonstration event without making ordering depend on a marketing destination.
+- The session behind all of it, and the marketing profile derived from it, can be read from the running application without a tenant login.
 
 The requirements-to-evidence mapping is in [docs/requirements.md](docs/requirements.md).
+
+## Behind the counter
+
+The storefront carries its own evidence panel, opened from the app header or
+by pressing `?` once signed in. It is not part of the ordering journey and is
+never open by default; it exists so that the session and the derived marketing
+profile can be read beside the order they describe rather than in another
+window.
+
+| Tab     | What it answers                                                                                     | Replaces                 |
+| ------- | --------------------------------------------------------------------------------------------------- | ------------------------ |
+| Session | What each token asserts, and whether its audience matches the audience this API deployment enforces | Browser devtools, jwt.io |
+| Insight | The derived marketing profile, and the Action's signed copy beside the API's live one               | The tenant user record   |
+
+Both tabs read: they decode tokens for display and call `GET /api/meta` for the
+deployment's own account of what it enforces. Neither is verification. The API
+re-reads every value from a signature it checks itself, and nothing the panel
+displays is trusted by anything.
 
 ## Architecture
 
@@ -49,7 +68,7 @@ flowchart LR
     API -->|"Protected identify event"| Marketing
 ```
 
-The browser expresses intent. The API establishes authority. ID tokens provide client identity context and are never accepted as API authorization, and raw token values are deliberately absent from the UI. Token storage is a stated trade-off rather than a default: see [docs/known-limitations.md](docs/known-limitations.md).
+The browser expresses intent. The API establishes authority. ID tokens provide client identity context and are never accepted as API authorization, and no raw token value is ever printed on screen. Token storage is a stated trade-off rather than a default: see [docs/known-limitations.md](docs/known-limitations.md).
 
 See [docs/architecture.md](docs/architecture.md) for the full trust-boundary walkthrough.
 
@@ -58,7 +77,7 @@ See [docs/architecture.md](docs/architecture.md) for the full trust-boundary wal
 ```text
 auth0/  Post-Login Action, order seed script, tests, and tenant configuration
 api/    Express API, domain rules, Auth0 Management API adapter, and tests
-web/    React/Vite SPA and interaction tests
+web/    React/Vite SPA, the Behind the counter evidence panel, and tests
 docs/   requirements, architecture, decisions, limitations, and evidence matrix
 ```
 
