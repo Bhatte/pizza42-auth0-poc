@@ -68,7 +68,7 @@ Token exchange remains explicitly allowed through `connect-src`.
 | Verification  | Refresh fails or returns still-unverified     | Distinct message, button re-enabled           | Pass   |
 | History       | Order placed without a new sign-in            | Appears in Recent orders immediately          | Pass   |
 | Marketing     | Browser-supplied traits ignored               | Traits derived server-side from `sub`         | Pass   |
-| Marketing     | Action and API derive identical profiles      | Shared golden fixtures agree in both suites   | Pass   |
+| Marketing     | Action and API derive identical profiles      | Generated parity cases agree in both suites   | Pass   |
 | Contract      | Order quantity ceiling is enforced            | At the ceiling accepted, one above rejected   | Pass   |
 | Evidence      | Claim table survives a token it cannot read   | Unreadable token decodes to nothing, not part | Pass   |
 | Evidence      | Panel is absent until it is asked for         | No evidence in the ordering view until opened | Pass   |

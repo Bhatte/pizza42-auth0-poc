@@ -193,8 +193,8 @@ auth0 api get branding
 ```
 
 They must match the storefront tokens `--char` and `--ember` in
-[../DESIGN.md](../DESIGN.md). Update both together or the hosted login will
-visibly diverge from the app it hands off to.
+`web/src/styles.css`. Update both together or the hosted login will visibly
+diverge from the app it hands off to.
 
 **The logo is a URL Auth0 fetches at render time, not an upload.** It points at
 the deployed storefront, so `web/public/pizza42-mark.svg` in this repository is

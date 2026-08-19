@@ -152,12 +152,10 @@ No hosted result is claimed until the corresponding row in [docs/test-matrix.md]
 - [Tenant configuration](auth0/tenant-config.md)
 - [Requirements traceability](docs/requirements.md)
 - [Architecture and trust boundaries](docs/architecture.md)
-- [Design system](DESIGN.md)
 - [Design decisions](docs/design-decisions.md)
 - [Known limitations](docs/known-limitations.md)
 - [Test matrix](docs/test-matrix.md)
 - [Deployment](docs/deployment.md)
-- [Contributing](CONTRIBUTING.md)
 - [MIT License](LICENSE)
 - [Third-party notices](THIRD_PARTY_NOTICES.md)
 
