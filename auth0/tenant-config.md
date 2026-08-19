@@ -295,10 +295,18 @@ Then, because these are not exposed as CLI flags:
   rejected by the current Management API;
 - set `refresh_token.leeway` to 3 on the SPA;
 - grant the orders M2M client only `read:users` and `update:users_app_metadata`;
-- grant the linking M2M client `read:users` and `update:users`;
-- set `MGMT_DOMAIN`, `MGMT_CLIENT_ID` and `MGMT_CLIENT_SECRET` as secrets on the
-  Action, using the linking client's credentials;
 - bind the Action to the `post-login` trigger.
+
+Account linking is the one part of this that is scripted, because it involves a
+credential that should not be copied between a terminal and a dashboard:
+
+```bash
+AUTH0=/path/to/auth0 ./auth0/setup-account-linking.sh
+```
+
+It creates the linking application, grants it `read:users` and `update:users`,
+sets the three secrets on the Action and deploys. The client secret stays inside
+that process — it is never printed and never written to disk.
 
 Verify with [../docs/test-matrix.md](../docs/test-matrix.md) before claiming any
 of it works.
