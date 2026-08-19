@@ -61,19 +61,6 @@ function createApi() {
       userId: "auth0|customer-42",
       traits: { customer_segment: "New Customer" },
     }),
-    getMeta: vi.fn().mockResolvedValue({
-      service: "Pizza 42 Orders API",
-      issuer: "https://tenant.eu.auth0.com/",
-      audience: "https://api.pizza42.com",
-      token_signing_alg: "RS256",
-      required_scopes: { "POST /api/orders": ["create:orders"] },
-      claim_namespace: "https://pizza42.com/",
-      verified_email_claim: "https://pizza42.com/email_verified",
-      verified_email_enforced_on: ["POST /api/orders"],
-      currency: "EUR",
-      max_line_quantity: 20,
-      max_order_lines: 20,
-    }),
   };
 }
 
@@ -420,19 +407,17 @@ describe("Pizza 42 ordering experience", () => {
     ).not.toBeInTheDocument();
   });
 
-  it("compares the token audience against the audience the API enforces", async () => {
+  it("falls back to the SDK's claims when a token will not decode", async () => {
     const user = userEvent.setup();
 
     render(<Pizza42App auth={createAuthenticatedAuth()} api={createApi()} />);
 
     await openDrawer(user);
 
-    // There is no real JWT in this test, so the token side is unreadable. The
-    // panel must report that honestly rather than claim a match it cannot see.
-    expect(
-      await screen.findByText(/audience does not agree/i),
-    ).toBeInTheDocument();
-    expect(screen.getByText("RS256")).toBeInTheDocument();
+    // Neither token is a real JWT here. The panel must still name who is signed
+    // in rather than rendering an empty table.
+    expect(await screen.findByText("auth0|customer-42")).toBeInTheDocument();
+    expect(screen.getByText("Email and password")).toBeInTheDocument();
   });
 
   it("surfaces the marketing traits the customer briefing asked for", async () => {

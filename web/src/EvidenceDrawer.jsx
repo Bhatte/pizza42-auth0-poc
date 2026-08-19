@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 
 import { formatEuro, formatTimestamp, providerName } from "./lib/format.js";
-import { audienceList, decodeToken, expiryStatus } from "./lib/tokens.js";
+import { decodeToken, expiryStatus } from "./lib/tokens.js";
 
 // Behind the counter: the session and the derived marketing profile, read from
 // the live tenant and the live API, beside the order they describe. It is
@@ -15,20 +15,13 @@ const TABS = [
 ];
 
 const EMAIL_VERIFIED_CLAIM = "https://pizza42.com/email_verified";
+const IDENTITIES_CLAIM = "https://pizza42.com/identities";
 const ORDERS_CLAIM = "https://pizza42.com/orders";
 const CUSTOMER_PROFILE_CLAIM = "https://pizza42.com/customer_profile";
 
-export function EvidenceDrawer({
-  open,
-  onClose,
-  api,
-  auth,
-  isVerified,
-  insight,
-}) {
+export function EvidenceDrawer({ open, onClose, auth, isVerified, insight }) {
   const [tab, setTab] = useState("session");
   const [tokens, setTokens] = useState({ status: "loading" });
-  const [meta, setMeta] = useState({ status: "loading" });
   const panelRef = useRef(null);
 
   // Re-read on every open. The access token changes when the customer confirms
@@ -47,20 +40,6 @@ export function EvidenceDrawer({
       active = false;
     };
   }, [open, auth]);
-
-  useEffect(() => {
-    if (!open) return undefined;
-    let active = true;
-
-    api
-      .getMeta()
-      .then((data) => active && setMeta({ status: "ready", data }))
-      .catch(() => active && setMeta({ status: "error" }));
-
-    return () => {
-      active = false;
-    };
-  }, [open, api]);
 
   useEffect(() => {
     if (!open) return undefined;
@@ -107,7 +86,6 @@ export function EvidenceDrawer({
         {tab === "session" ? (
           <SessionTab
             tokens={tokens}
-            meta={meta}
             idTokenClaims={auth.idTokenClaims}
             isVerified={isVerified}
           />
@@ -172,7 +150,7 @@ const CLAIM_ROWS = [
   { key: CUSTOMER_PROFILE_CLAIM, label: "Customer profile" },
 ];
 
-function SessionTab({ tokens, meta, idTokenClaims, isVerified }) {
+function SessionTab({ tokens, idTokenClaims, isVerified }) {
   const nowMs = useNow(1000);
 
   if (tokens.status === "loading") {
@@ -189,11 +167,6 @@ function SessionTab({ tokens, meta, idTokenClaims, isVerified }) {
 
   const accessClaims = decodeToken(tokens.accessToken);
   const idClaims = decodeToken(tokens.idToken) ?? idTokenClaims ?? {};
-  const apiAudience = meta.status === "ready" ? meta.data.audience : null;
-  const tokenAudiences = audienceList(accessClaims?.aud);
-  const audienceAgrees = apiAudience
-    ? tokenAudiences.includes(apiAudience)
-    : null;
 
   return (
     <>
@@ -212,7 +185,7 @@ function SessionTab({ tokens, meta, idTokenClaims, isVerified }) {
           </div>
           <div>
             <dt>Signed in with</dt>
-            <dd>{providerName(String(idClaims.sub ?? "").split("|")[0])}</dd>
+            <dd>{signInMethods(idClaims)}</dd>
           </div>
           <div>
             <dt>Email confirmed</dt>
@@ -264,86 +237,21 @@ function SessionTab({ tokens, meta, idTokenClaims, isVerified }) {
           <CopyButton label="Copy ID token" value={tokens.idToken} />
         </div>
       </section>
-
-      <section className="drawer-section">
-        <h3>What the API enforces</h3>
-        {meta.status === "error" ? (
-          <p className="drawer-note">
-            The API did not answer its configuration read-back.
-          </p>
-        ) : null}
-        {meta.status === "ready" ? (
-          <>
-            {audienceAgrees === null ? null : (
-              <div className={`match-card is-${audienceAgrees ? "yes" : "no"}`}>
-                <strong>
-                  {audienceAgrees
-                    ? "Audience agrees"
-                    : "Audience does not agree"}
-                </strong>
-                <p>
-                  The token is addressed to{" "}
-                  <code>{tokenAudiences[0] ?? "—"}</code> and this deployment
-                  accepts <code>{apiAudience}</code>.
-                </p>
-              </div>
-            )}
-            <dl className="drawer-facts">
-              <div>
-                <dt>Issuer accepted</dt>
-                <dd>
-                  <code>{meta.data.issuer ?? "—"}</code>
-                </dd>
-              </div>
-              <div>
-                <dt>Signing algorithm</dt>
-                <dd>
-                  <code>{meta.data.token_signing_alg}</code>
-                </dd>
-              </div>
-              <div>
-                <dt>Confirmed email required on</dt>
-                <dd>
-                  <code>
-                    {(meta.data.verified_email_enforced_on ?? []).join(", ")}
-                  </code>
-                </dd>
-              </div>
-              <div>
-                <dt>Quantity ceiling</dt>
-                <dd>
-                  {meta.data.max_line_quantity} per line,{" "}
-                  {meta.data.max_order_lines} lines
-                </dd>
-              </div>
-            </dl>
-            <table className="claim-table is-compact">
-              <thead>
-                <tr>
-                  <th scope="col">Operation</th>
-                  <th scope="col">Scope required</th>
-                </tr>
-              </thead>
-              <tbody>
-                {Object.entries(meta.data.required_scopes ?? {}).map(
-                  ([operation, scopes]) => (
-                    <tr key={operation}>
-                      <th scope="row">
-                        <code>{operation}</code>
-                      </th>
-                      <td>
-                        <code>{scopes.join(" ")}</code>
-                      </td>
-                    </tr>
-                  ),
-                )}
-              </tbody>
-            </table>
-          </>
-        ) : null}
-      </section>
     </>
   );
+}
+
+// One account can carry several identities once they have been linked, and
+// which ones is the whole visible result of linking. Falls back to reading the
+// provider out of the subject for a token issued before the claim existed.
+function signInMethods(claims) {
+  const linked = claims?.[IDENTITIES_CLAIM];
+  const providers =
+    Array.isArray(linked) && linked.length > 0
+      ? linked
+      : [String(claims?.sub ?? "").split("|")[0]];
+
+  return providers.map(providerName).join(", ");
 }
 
 function ClaimValue({ claim, value, nowMs }) {

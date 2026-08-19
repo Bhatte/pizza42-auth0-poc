@@ -607,7 +607,6 @@ function OrderingExperience({ auth, api }) {
       <EvidenceDrawer
         open={isDrawerOpen}
         onClose={closeDrawer}
-        api={api}
         auth={auth}
         isVerified={isVerified}
         insight={insight}

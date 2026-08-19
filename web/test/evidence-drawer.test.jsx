@@ -39,6 +39,7 @@ const ID_TOKEN = jwt({
   exp: now + 3600,
   "https://pizza42.com/email_verified": true,
   "https://pizza42.com/orders": [{ id: "ord_1" }, { id: "ord_2" }],
+  "https://pizza42.com/identities": ["auth0", "google-oauth2"],
   "https://pizza42.com/customer_profile": PROFILE,
 });
 
@@ -50,30 +51,6 @@ const ACCESS_TOKEN = jwt({
   scope: "create:orders read:orders",
   "https://pizza42.com/email_verified": true,
 });
-
-const META = {
-  service: "Pizza 42 Orders API",
-  issuer: "https://tenant.eu.auth0.com/",
-  audience: API_AUDIENCE,
-  token_signing_alg: "RS256",
-  required_scopes: {
-    "GET /api/orders": ["read:orders"],
-    "POST /api/orders": ["create:orders"],
-  },
-  claim_namespace: "https://pizza42.com/",
-  verified_email_claim: "https://pizza42.com/email_verified",
-  verified_email_enforced_on: ["POST /api/orders"],
-  currency: "EUR",
-  max_line_quantity: 20,
-  max_order_lines: 20,
-};
-
-function createApi(overrides = {}) {
-  return {
-    getMeta: vi.fn().mockResolvedValue(META),
-    ...overrides,
-  };
-}
 
 function createAuth(overrides = {}) {
   return {
@@ -97,13 +74,12 @@ function createInsight(overrides = {}) {
   };
 }
 
-function renderDrawer({ api, auth, insight, ...rest } = {}) {
+function renderDrawer({ auth, insight, ...rest } = {}) {
   const onClose = vi.fn();
   const result = render(
     <EvidenceDrawer
       open
       onClose={onClose}
-      api={api ?? createApi()}
       auth={auth ?? createAuth()}
       isVerified
       insight={insight ?? createInsight()}
@@ -131,7 +107,6 @@ describe("Behind the counter", () => {
       <EvidenceDrawer
         open={false}
         onClose={vi.fn()}
-        api={createApi()}
         auth={createAuth()}
         isVerified
         insight={createInsight()}
@@ -155,32 +130,31 @@ describe("Behind the counter", () => {
     expect(screen.getAllByText("not present").length).toBe(3);
   });
 
+  it("names every identity linked to the account, not just the one used", async () => {
+    renderDrawer();
+
+    expect(
+      await screen.findByText("Email and password, Google"),
+    ).toBeInTheDocument();
+  });
+
+  it("reads the provider out of the subject for a token issued before linking", async () => {
+    const auth = createAuth({
+      getRawTokens: vi.fn().mockResolvedValue({
+        accessToken: ACCESS_TOKEN,
+        idToken: jwt({ sub: SUB, exp: now + 60 }),
+      }),
+    });
+    renderDrawer({ auth });
+
+    expect(await screen.findByText("Google")).toBeInTheDocument();
+  });
+
   it("counts down to expiry rather than printing a timestamp", async () => {
     renderDrawer();
 
     // Both tokens count down; the access token outlives the ID token.
     expect((await screen.findAllByText(/left$/)).length).toBe(2);
-  });
-
-  it("says the audience agrees when the token and the deployment match", async () => {
-    renderDrawer();
-
-    expect(await screen.findByText("Audience agrees")).toBeInTheDocument();
-    expect(screen.getByText("RS256")).toBeInTheDocument();
-    expect(screen.getByText("20 per line, 20 lines")).toBeInTheDocument();
-  });
-
-  it("says so when the token is addressed somewhere this deployment does not accept", async () => {
-    const api = createApi({
-      getMeta: vi
-        .fn()
-        .mockResolvedValue({ ...META, audience: "https://api.elsewhere.test" }),
-    });
-    renderDrawer({ api });
-
-    expect(
-      await screen.findByText("Audience does not agree"),
-    ).toBeInTheDocument();
   });
 
   it("reports a session it could not read instead of showing an empty table", async () => {
@@ -191,17 +165,6 @@ describe("Behind the counter", () => {
 
     expect(
       await screen.findByText(/session could not be read/i),
-    ).toBeInTheDocument();
-  });
-
-  it("reports a configuration read-back the API did not answer", async () => {
-    const api = createApi({
-      getMeta: vi.fn().mockRejectedValue(new Error("unreachable")),
-    });
-    renderDrawer({ api });
-
-    expect(
-      await screen.findByText(/did not answer its configuration/i),
     ).toBeInTheDocument();
   });
 

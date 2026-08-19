@@ -152,8 +152,8 @@ Three rules keep it from turning the storefront into a dashboard:
    still marks actions only; evidence uses `flame` and the state colours,
    because a panel where everything glows tells you nothing.
 
-Values in the panel are read, never asserted: it shows what a token says and
-what the API publishes, and neither is a check anything depends on.
+Values in the panel are read, never asserted: it shows what a token says, and
+that is not a check anything depends on.
 
 The panel states values and does not explain them. Its reader already knows
 what an audience claim is, and a caption telling them would read as a lecture.
