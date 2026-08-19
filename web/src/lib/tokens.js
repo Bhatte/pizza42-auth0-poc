@@ -19,20 +19,6 @@ export function audienceList(audience) {
   return audience ? [audience] : [];
 }
 
-// Which of the two tokens this is, decided the way the API decides it: by
-// audience. An ID token is addressed to the SPA's client ID; an access token
-// for this API is addressed to the API identifier.
-export function createTokenClassifier({ apiAudience, clientId }) {
-  return function classify(raw) {
-    const claims = decodeToken(raw);
-    if (!claims) return "unreadable token";
-    const audiences = audienceList(claims.aud);
-    if (audiences.includes(apiAudience)) return "access token";
-    if (audiences.includes(clientId)) return "ID token";
-    return "bearer token";
-  };
-}
-
 export function formatDuration(totalSeconds) {
   const seconds = Math.max(0, Math.floor(totalSeconds));
   const hours = Math.floor(seconds / 3600);
@@ -52,15 +38,4 @@ export function expiryStatus(claims, nowMs = Date.now()) {
     label: secondsLeft <= 0 ? "expired" : `${formatDuration(secondsLeft)} left`,
     expiresAt: new Date(claims.exp * 1000).toISOString(),
   };
-}
-
-// Flips one character of the signature segment. The header and payload are left
-// untouched, so the API cannot reject this on shape or content — it has to
-// reject it on the signature, which is the whole point of sending it.
-export function tamperSignature(raw) {
-  const segments = String(raw ?? "").split(".");
-  if (segments.length !== 3 || segments[2].length === 0) return raw;
-  const signature = segments[2];
-  const last = signature.slice(-1);
-  return `${segments[0]}.${segments[1]}.${signature.slice(0, -1)}${last === "A" ? "B" : "A"}`;
 }

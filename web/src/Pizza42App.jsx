@@ -376,7 +376,7 @@ function OrderingExperience({ auth, api }) {
   );
   // Challenge requirement 10: the order history Auth0 put in the ID token at
   // login. It is evidence, not the customer's live order list, so it is shown
-  // in Session details beside the API's answer rather than sold as "recent".
+  // in Behind the counter beside the API's answer rather than sold as "recent".
   const claimedOrders = Array.isArray(auth.idTokenClaims?.[ORDERS_CLAIM])
     ? auth.idTokenClaims[ORDERS_CLAIM]
     : [];
@@ -610,7 +610,6 @@ function OrderingExperience({ auth, api }) {
         api={api}
         auth={auth}
         isVerified={isVerified}
-        store={store}
         insight={insight}
       />
     </main>

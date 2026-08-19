@@ -1,9 +1,8 @@
-import { render, screen, waitFor, within } from "@testing-library/react";
+import { render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { EvidenceDrawer } from "../src/EvidenceDrawer.jsx";
-import { createRequestLog } from "../src/lib/request-log.js";
 
 const API_AUDIENCE = "https://api.pizza42.com";
 const CLIENT_ID = "sTdY6qgVpN2mKcR8wZ0hLb4XeF7uJ1nA";
@@ -69,18 +68,8 @@ const META = {
   max_order_lines: 20,
 };
 
-function refusal(status, error) {
-  return new Response(JSON.stringify({ error, message: "Refused." }), {
-    status,
-    headers: { "content-type": "application/json" },
-  });
-}
-
 function createApi(overrides = {}) {
   return {
-    baseUrl: "https://api.pizza42.example",
-    request: vi.fn().mockResolvedValue(refusal(401, "authentication_required")),
-    log: createRequestLog(),
     getMeta: vi.fn().mockResolvedValue(META),
     ...overrides,
   };
@@ -117,7 +106,6 @@ function renderDrawer({ api, auth, insight, ...rest } = {}) {
       api={api ?? createApi()}
       auth={auth ?? createAuth()}
       isVerified
-      store={STORE}
       insight={insight ?? createInsight()}
       {...rest}
     />,
@@ -146,7 +134,6 @@ describe("Behind the counter", () => {
         api={createApi()}
         auth={createAuth()}
         isVerified
-        store={STORE}
         insight={createInsight()}
       />,
     );
@@ -256,7 +243,7 @@ describe("Behind the counter", () => {
     session.focus();
     await user.keyboard("{ArrowRight}");
 
-    expect(screen.getByRole("tab", { name: "Prove it" })).toHaveAttribute(
+    expect(screen.getByRole("tab", { name: "Insight" })).toHaveAttribute(
       "aria-selected",
       "true",
     );
@@ -272,84 +259,6 @@ describe("Behind the counter", () => {
     await user.keyboard("{Escape}");
 
     expect(onClose).toHaveBeenCalled();
-  });
-});
-
-describe("Behind the counter — probes", () => {
-  it("runs every available probe and reports each refusal", async () => {
-    const user = userEvent.setup();
-    const api = createApi();
-    api.request.mockImplementation(async (_url, init) => {
-      if (!init?.headers?.authorization)
-        return refusal(401, "authentication_required");
-      return refusal(400, "invalid_order");
-    });
-    renderDrawer({ api });
-
-    await openTab(user, "Prove it");
-    const runAll = screen.getByRole("button", { name: "Run all" });
-    await waitFor(() => expect(runAll).toBeEnabled());
-    await user.click(runAll);
-
-    // Seven of the eight are offered; the unverified probe is not, because this
-    // account has confirmed its email.
-    await waitFor(() => expect(api.request).toHaveBeenCalledTimes(7));
-    expect(screen.getAllByText(/As expected|Unexpected/).length).toBe(7);
-  });
-
-  it("dims the unverified probe and says why it is not offered", async () => {
-    const user = userEvent.setup();
-    renderDrawer();
-
-    await openTab(user, "Prove it");
-
-    expect(
-      screen.getByText(/already confirmed its email/i),
-    ).toBeInTheDocument();
-  });
-
-  it("offers the unverified probe while the account is unconfirmed", async () => {
-    const user = userEvent.setup();
-    renderDrawer({ isVerified: false });
-
-    await openTab(user, "Prove it");
-
-    expect(
-      screen.queryByText(/already confirmed its email/i),
-    ).not.toBeInTheDocument();
-  });
-
-  it("names a request that never reached the API instead of showing nothing", async () => {
-    const user = userEvent.setup();
-    const api = createApi({
-      request: vi.fn().mockRejectedValue(new TypeError("Failed to fetch")),
-    });
-    renderDrawer({ api });
-
-    await openTab(user, "Prove it");
-    const [first] = await screen.findAllByRole("button", { name: "Run" });
-    await waitFor(() => expect(first).toBeEnabled());
-    await user.click(first);
-
-    expect(
-      await screen.findByText("Never reached the API"),
-    ).toBeInTheDocument();
-    expect(screen.getByText("Failed to fetch")).toBeInTheDocument();
-  });
-
-  it("prints a reproducible command with the credential as a shell variable", async () => {
-    const user = userEvent.setup();
-    renderDrawer();
-
-    await openTab(user, "Prove it");
-    const [firstCurl] = screen.getAllByText("Run it yourself");
-    await user.click(firstCurl);
-
-    const command = firstCurl
-      .closest("details")
-      .querySelector("pre").textContent;
-    expect(command).toContain("$PIZZA42_API/api/orders");
-    expect(command).not.toContain(ACCESS_TOKEN);
   });
 });
 
@@ -398,7 +307,7 @@ describe("Behind the counter — insight", () => {
       screen.getByText("2 traits have moved since sign-in"),
     ).toBeInTheDocument();
     expect(
-      screen.getByText(/cannot describe an order placed since/i),
+      screen.getByText(/describes sign-in, not what happened after/i),
     ).toBeInTheDocument();
   });
 
@@ -440,59 +349,5 @@ describe("Behind the counter — insight", () => {
     await openTab(user, "Insight");
 
     expect(screen.getByText("Highest segment reached")).toBeInTheDocument();
-  });
-});
-
-describe("Behind the counter — network", () => {
-  it("says nothing has been recorded before anything has", async () => {
-    const user = userEvent.setup();
-    renderDrawer();
-
-    await openTab(user, "Network");
-
-    expect(screen.getByText("Nothing recorded yet.")).toBeInTheDocument();
-  });
-
-  it("lists each call with the credential it presented, and clears", async () => {
-    const user = userEvent.setup();
-    const log = createRequestLog({
-      classify: () => "access token",
-    });
-    const api = createApi({ log });
-    const request = log.instrument(
-      vi.fn().mockResolvedValue(new Response("{}", { status: 200 })),
-    );
-    await request("https://api.pizza42.example/api/orders", {
-      headers: { authorization: "Bearer x" },
-    });
-    await request("https://api.pizza42.example/api/menu");
-
-    renderDrawer({ api });
-    await openTab(user, "Network");
-
-    const table = screen.getByRole("table");
-    expect(within(table).getByText("GET /api/orders")).toBeInTheDocument();
-    expect(within(table).getByText("access token")).toBeInTheDocument();
-    expect(within(table).getByText("none")).toBeInTheDocument();
-
-    await user.click(screen.getByRole("button", { name: "Clear" }));
-    expect(screen.getByText("Nothing recorded yet.")).toBeInTheDocument();
-  });
-
-  it("shows a call that never got a status as a failure", async () => {
-    const user = userEvent.setup();
-    const log = createRequestLog();
-    const api = createApi({ log });
-    const request = log.instrument(
-      vi.fn().mockRejectedValue(new TypeError("Failed to fetch")),
-    );
-    await expect(
-      request("https://api.pizza42.example/api/menu"),
-    ).rejects.toThrow();
-
-    renderDrawer({ api });
-    await openTab(user, "Network");
-
-    expect(screen.getByText("TypeError")).toBeInTheDocument();
   });
 });

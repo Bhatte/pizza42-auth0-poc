@@ -1,11 +1,18 @@
-import { describe, expect, it, vi } from "vitest";
+import { describe, expect, it } from "vitest";
 
-import { PROBES, curlFor, isAvailable, runProbe } from "../src/lib/probes.js";
-import { createRequestLog } from "../src/lib/request-log.js";
-import { createTokenClassifier, tamperSignature } from "../src/lib/tokens.js";
+import {
+  formatEuro,
+  formatTimestamp,
+  providerName,
+} from "../src/lib/format.js";
+import {
+  audienceList,
+  decodeToken,
+  expiryStatus,
+  formatDuration,
+} from "../src/lib/tokens.js";
 
 const API_AUDIENCE = "https://api.pizza42.com";
-const CLIENT_ID = "sTdY6qgVpN2mKcR8wZ0hLb4XeF7uJ1nA";
 
 function jwt(payload) {
   const encode = (value) =>
@@ -16,196 +23,76 @@ function jwt(payload) {
   return `${encode({ alg: "RS256" })}.${encode(payload)}.AAAAsignature`;
 }
 
-const ACCESS_TOKEN = jwt({ sub: "auth0|42", aud: [API_AUDIENCE], exp: 1 });
-const ID_TOKEN = jwt({ sub: "auth0|42", aud: CLIENT_ID, exp: 1 });
+describe("reading a token", () => {
+  it("decodes the claims a token carries", () => {
+    const claims = decodeToken(jwt({ sub: "auth0|42", aud: [API_AUDIENCE] }));
 
-const classify = createTokenClassifier({
-  apiAudience: API_AUDIENCE,
-  clientId: CLIENT_ID,
-});
-
-describe("token inspection", () => {
-  it("names each token by the audience it is addressed to", () => {
-    expect(classify(ACCESS_TOKEN)).toBe("access token");
-    expect(classify(ID_TOKEN)).toBe("ID token");
-    expect(classify(jwt({ aud: "https://elsewhere.example" }))).toBe(
-      "bearer token",
-    );
-    expect(classify("not-a-jwt")).toBe("unreadable token");
+    expect(claims).toMatchObject({ sub: "auth0|42", aud: [API_AUDIENCE] });
   });
 
-  it("tampers with the signature and nothing else", () => {
-    const tampered = tamperSignature(ACCESS_TOKEN);
-
-    const [header, payload, signature] = ACCESS_TOKEN.split(".");
-    const [tamperedHeader, tamperedPayload, tamperedSignature] =
-      tampered.split(".");
-
-    expect(tamperedHeader).toBe(header);
-    expect(tamperedPayload).toBe(payload);
-    expect(tamperedSignature).not.toBe(signature);
-    expect(tamperedSignature).toHaveLength(signature.length);
+  // Decoding is display, never a decision. Anything unreadable has to come back
+  // as nothing rather than as a half-populated object something might trust.
+  it("returns nothing for anything that is not a readable JWT", () => {
+    expect(decodeToken("not-a-jwt")).toBeNull();
+    expect(decodeToken("")).toBeNull();
+    expect(decodeToken(undefined)).toBeNull();
   });
 
-  it("leaves a token that is not a JWT alone rather than corrupting it", () => {
-    expect(tamperSignature("opaque")).toBe("opaque");
+  it("reads an audience whether it arrives as a string or a list", () => {
+    expect(audienceList(API_AUDIENCE)).toEqual([API_AUDIENCE]);
+    expect(
+      audienceList([API_AUDIENCE, "https://tenant.eu.auth0.com/userinfo"]),
+    ).toHaveLength(2);
+    expect(audienceList(undefined)).toEqual([]);
   });
 });
 
-describe("request log", () => {
-  it("records which credential was presented and never the credential", async () => {
-    const log = createRequestLog({ classify });
-    const fetchRequest = vi.fn().mockResolvedValue(new Response("{}"));
-    const request = log.instrument(fetchRequest);
-
-    await request("https://api.pizza42.example/api/orders", {
-      headers: { authorization: `Bearer ${ACCESS_TOKEN}` },
-    });
-
-    const [entry] = log.getSnapshot();
-    expect(entry).toMatchObject({
-      method: "GET",
-      path: "/api/orders",
-      credential: "access token",
-      status: 200,
-    });
-    expect(JSON.stringify(log.getSnapshot())).not.toContain(ACCESS_TOKEN);
+describe("expiry", () => {
+  it("counts down in the largest unit that still says something useful", () => {
+    expect(formatDuration(7325)).toBe("2h 2m");
+    expect(formatDuration(125)).toBe("2m 5s");
+    expect(formatDuration(9)).toBe("9s");
+    expect(formatDuration(-30)).toBe("0s");
   });
 
-  it("reports an anonymous call as carrying nothing", async () => {
-    const log = createRequestLog({ classify });
-    const request = log.instrument(
-      vi.fn().mockResolvedValue(new Response("{}", { status: 401 })),
-    );
+  it("reports how long a token has left", () => {
+    const nowMs = 1_760_000_000_000;
+    const status = expiryStatus({ exp: nowMs / 1000 + 600 }, nowMs);
 
-    await request("https://api.pizza42.example/api/orders");
-
-    expect(log.getSnapshot()[0]).toMatchObject({
-      credential: "none",
-      status: 401,
-    });
+    expect(status).toMatchObject({ known: true, expired: false });
+    expect(status.label).toBe("10m 0s left");
   });
 
-  // A wrapper that turned fetch(url) into fetch(url, {}) would have changed the
-  // client's observable behaviour to buy nothing.
-  it("forwards the caller's arguments unchanged", async () => {
-    const fetchRequest = vi.fn().mockResolvedValue(new Response("{}"));
-    const request = createRequestLog().instrument(fetchRequest);
+  it("says plainly when a token has already expired", () => {
+    const nowMs = 1_760_000_000_000;
+    const status = expiryStatus({ exp: nowMs / 1000 - 1 }, nowMs);
 
-    await request("https://api.pizza42.example/api/menu");
-
-    expect(fetchRequest).toHaveBeenCalledWith(
-      "https://api.pizza42.example/api/menu",
-    );
+    expect(status.expired).toBe(true);
+    expect(status.label).toBe("expired");
   });
 
-  it("records a request that never reached the API, then rethrows", async () => {
-    const log = createRequestLog();
-    const request = log.instrument(
-      vi.fn().mockRejectedValue(new TypeError("Failed to fetch")),
-    );
-
-    await expect(
-      request("https://api.pizza42.example/api/menu"),
-    ).rejects.toThrow("Failed to fetch");
-    expect(log.getSnapshot()[0]).toMatchObject({
-      status: null,
-      failure: "TypeError",
-    });
-  });
-
-  it("keeps the newest calls and discards the rest", async () => {
-    const log = createRequestLog({ limit: 2 });
-    const request = log.instrument(
-      vi.fn().mockResolvedValue(new Response("{}")),
-    );
-
-    for (const path of ["/a", "/b", "/c"]) {
-      await request(`https://api.pizza42.example${path}`);
-    }
-
-    expect(log.getSnapshot().map((entry) => entry.path)).toEqual(["/c", "/b"]);
+  it("reports an unknown expiry rather than inventing one", () => {
+    expect(expiryStatus({})).toEqual({ known: false });
+    expect(expiryStatus(null)).toEqual({ known: false });
   });
 });
 
-describe("probes", () => {
-  it("offers the unverified probe only while the account is unverified", () => {
-    const probe = PROBES.find(
-      (candidate) => candidate.id === "unverified-order",
-    );
-
-    expect(isAvailable(probe, { verified: false })).toBe(true);
-    expect(isAvailable(probe, { verified: true })).toBe(false);
+describe("formatting for a reader", () => {
+  it("formats money in the currency the API prices in", () => {
+    expect(formatEuro.format(22.83)).toBe("€22.83");
   });
 
-  // The command is meant to be projected onto a wall.
-  it("never puts a token value in the command it prints", () => {
-    for (const probe of PROBES) {
-      const command = curlFor(probe, "Dublin Camden Street");
-      expect(command).not.toContain(ACCESS_TOKEN);
-      expect(command).not.toContain(ID_TOKEN);
-      if (probe.credential) expect(command).toContain("$");
-    }
+  it("formats a timestamp, and leaves an unparseable one alone", () => {
+    expect(formatTimestamp("2026-08-16T19:41:02.100Z")).toMatch(/2026/);
+    expect(formatTimestamp("whenever")).toBe("whenever");
+    expect(formatTimestamp(null)).toBe("—");
   });
 
-  it("presents the ID token when the probe is about the ID token", async () => {
-    const probe = PROBES.find(
-      (candidate) => candidate.id === "id-token-as-credential",
-    );
-    const fetchRequest = vi.fn().mockResolvedValue(
-      new Response(JSON.stringify({ error: "authentication_required" }), {
-        status: 401,
-      }),
-    );
-
-    const result = await runProbe(probe, {
-      baseUrl: "https://api.pizza42.example",
-      accessToken: ACCESS_TOKEN,
-      idToken: ID_TOKEN,
-      store: "Dublin Camden Street",
-      fetchRequest,
-    });
-
-    expect(fetchRequest.mock.calls[0][1].headers.authorization).toBe(
-      `Bearer ${ID_TOKEN}`,
-    );
-    expect(result).toMatchObject({ status: 401, matched: true });
-  });
-
-  it("reports a probe as unexpected when the API does not refuse it", async () => {
-    const probe = PROBES.find((candidate) => candidate.id === "unknown-item");
-    const fetchRequest = vi
-      .fn()
-      .mockResolvedValue(
-        new Response(JSON.stringify({ id: "ord_1" }), { status: 201 }),
-      );
-
-    const result = await runProbe(probe, {
-      baseUrl: "https://api.pizza42.example",
-      accessToken: ACCESS_TOKEN,
-      idToken: ID_TOKEN,
-      store: "Dublin Camden Street",
-      fetchRequest,
-    });
-
-    expect(result.matched).toBe(false);
-  });
-
-  it("survives an API that answers a probe with HTML", async () => {
-    const probe = PROBES[0];
-    const fetchRequest = vi
-      .fn()
-      .mockResolvedValue(new Response("<html>429</html>", { status: 429 }));
-
-    const result = await runProbe(probe, {
-      baseUrl: "https://api.pizza42.example",
-      accessToken: ACCESS_TOKEN,
-      idToken: ID_TOKEN,
-      store: "Dublin Camden Street",
-      fetchRequest,
-    });
-
-    expect(result.matched).toBe(false);
-    expect(result.body.note).toMatch(/not JSON/i);
+  // A wrong provider name in an evidence panel is worse than an unfamiliar one.
+  it("names known providers and shows unknown ones verbatim", () => {
+    expect(providerName("google-oauth2")).toBe("Google");
+    expect(providerName("auth0")).toBe("Email and password");
+    expect(providerName("windowslive")).toBe("windowslive");
+    expect(providerName("")).toBe("Unknown");
   });
 });

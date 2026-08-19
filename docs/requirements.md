@@ -19,12 +19,9 @@ This matrix maps the ten implementation requirements to the planned evidence. St
 
 UI state is not evidence of authorization. Requirements 7 and 8 must be proved by direct API calls that bypass the SPA. Requirement 9 must be verified in the Auth0 profile, and requirement 10 requires a newly issued ID token.
 
-The Behind the counter panel's Prove it tab makes those direct calls from the
-page rather than from the ordering flow: it builds each request itself and
-presents credentials the storefront would never present, including none at all.
-That satisfies "bypasses the SPA's own logic", and it prints the equivalent
-`curl` beside each result so the same call can be made from outside the browser
-entirely. Where a panel wants evidence gathered off the page, use the `curl`.
+The Behind the counter panel is a reading surface, not a substitute for those
+calls. Its Session tab offers both raw tokens to the clipboard so the direct
+calls can be made from a terminal against the deployed API.
 
 The Auth0 user store was reset after validation on 17 August 2026. Recreate
 demo identities and order data before recording new screenshots or running a

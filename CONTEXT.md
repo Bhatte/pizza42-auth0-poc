@@ -12,7 +12,6 @@
 - **Marketing event**: a current-customer-only, Segment-shaped demonstration payload. It is simulated and must be labelled as such.
 - **Fresh token**: an access token obtained with cache bypass after the customer verifies their email.
 - **Behind the counter**: the evidence panel in the authenticated storefront. It is a presenter's surface, not a customer's, and holds every term above. Do not call it a dashboard or a console in product copy.
-- **Probe**: a request the evidence panel makes in order to be refused. A request that succeeds is not a probe.
 
 ## Trust rules
 

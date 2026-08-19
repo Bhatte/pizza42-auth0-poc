@@ -26,7 +26,7 @@ Pizza 42 is a security-focused Auth0 proof of concept for a customer ordering jo
 - Successful orders are appended to Auth0 `app_metadata.orders` using a least-privilege Management API client.
 - A Post-Login Action adds order history and a derived customer profile to namespaced ID-token claims.
 - A protected, customer-scoped endpoint produces a Segment-shaped demonstration event without making ordering depend on a marketing destination.
-- Every one of the above can be checked from the running application, without a tenant login, an intercepting proxy or a browser console.
+- The session behind all of it, and the marketing profile derived from it, can be read from the running application without a tenant login.
 
 The requirements-to-evidence mapping is in [docs/requirements.md](docs/requirements.md).
 
@@ -34,26 +34,19 @@ The requirements-to-evidence mapping is in [docs/requirements.md](docs/requireme
 
 The storefront carries its own evidence panel, opened from the app header or
 by pressing `?` once signed in. It is not part of the ordering journey and is
-never open by default; it exists so that the claims, the refusals and the
-derived marketing profile can be examined beside the order they describe
-rather than in four other windows.
+never open by default; it exists so that the session and the derived marketing
+profile can be read beside the order they describe rather than in another
+window.
 
-| Tab      | What it answers                                                                                        | Replaces                       |
-| -------- | ------------------------------------------------------------------------------------------------------ | ------------------------------ |
-| Session  | What each token asserts, and whether its audience matches the audience this API deployment enforces    | Browser devtools, jwt.io       |
-| Prove it | Eight requests designed to be refused, run live against the deployed API with the real status and body | Postman, an intercepting proxy |
-| Insight  | The derived marketing profile, and the Action's signed copy beside the API's live one                  | The tenant user record         |
-| Network  | Every call the page has made, and which credential each one presented                                  | The devtools network tab       |
+| Tab     | What it answers                                                                                     | Replaces                 |
+| ------- | --------------------------------------------------------------------------------------------------- | ------------------------ |
+| Session | What each token asserts, and whether its audience matches the audience this API deployment enforces | Browser devtools, jwt.io |
+| Insight | The derived marketing profile, and the Action's signed copy beside the API's live one               | The tenant user record   |
 
-Every probe on the Prove it tab is a rejection. Each is refused in the
-authentication, verification or schema layer, all of which sit in front of the
-profile write, so running the whole set stores nothing. Each shows the
-equivalent `curl` with the credential as a shell variable, so a reviewer can
-reproduce it from their own terminal rather than take the page's word for it.
-
-The panel decodes tokens for reading and says so. Decoding is not verification:
-the API re-reads every value from a signature it checks itself, and nothing the
-panel displays is trusted by anything.
+Both tabs read: they decode tokens for display and call `GET /api/meta` for the
+deployment's own account of what it enforces. Neither is verification. The API
+re-reads every value from a signature it checks itself, and nothing the panel
+displays is trusted by anything.
 
 ## Architecture
 

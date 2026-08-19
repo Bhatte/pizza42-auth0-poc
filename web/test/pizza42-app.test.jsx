@@ -1,9 +1,8 @@
-import { render, screen, waitFor } from "@testing-library/react";
+import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vitest";
 
 import { Pizza42App } from "../src/Pizza42App.jsx";
-import { createRequestLog } from "../src/lib/request-log.js";
 
 function createGuestAuth() {
   return {
@@ -62,9 +61,6 @@ function createApi() {
       userId: "auth0|customer-42",
       traits: { customer_segment: "New Customer" },
     }),
-    baseUrl: "https://api.pizza42.example",
-    request: vi.fn(),
-    log: createRequestLog(),
     getMeta: vi.fn().mockResolvedValue({
       service: "Pizza 42 Orders API",
       issuer: "https://tenant.eu.auth0.com/",
@@ -437,35 +433,6 @@ describe("Pizza 42 ordering experience", () => {
       await screen.findByText(/audience does not agree/i),
     ).toBeInTheDocument();
     expect(screen.getByText("RS256")).toBeInTheDocument();
-  });
-
-  it("runs a probe against the API and reports what actually came back", async () => {
-    const user = userEvent.setup();
-    const api = createApi();
-    api.request.mockResolvedValue(
-      new Response(
-        JSON.stringify({
-          error: "authentication_required",
-          message: "A valid access token is required.",
-        }),
-        { status: 401, headers: { "content-type": "application/json" } },
-      ),
-    );
-
-    render(<Pizza42App auth={createAuthenticatedAuth()} api={api} />);
-
-    await openDrawer(user, "Prove it");
-    // Probes stay disabled until the session has been read, which is the state
-    // the panel reports as "Reading session…".
-    const [firstProbe] = await screen.findAllByRole("button", { name: "Run" });
-    await waitFor(() => expect(firstProbe).toBeEnabled());
-    await user.click(firstProbe);
-
-    expect(await screen.findByText("As expected")).toBeInTheDocument();
-    expect(api.request).toHaveBeenCalledWith(
-      "https://api.pizza42.example/api/orders",
-      expect.objectContaining({ method: "GET", headers: {} }),
-    );
   });
 
   it("surfaces the marketing traits the customer briefing asked for", async () => {

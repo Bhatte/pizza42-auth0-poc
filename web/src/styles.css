@@ -1358,7 +1358,7 @@ svg {
 .drawer-header {
   display: flex;
   gap: var(--space-3);
-  align-items: flex-start;
+  align-items: center;
   justify-content: space-between;
   padding: var(--space-4) var(--space-4) var(--space-3);
   border-block-end: 1px solid var(--hairline);
@@ -1369,14 +1369,6 @@ svg {
   font-size: 1.3rem;
   font-weight: 700;
   letter-spacing: -0.02em;
-}
-.drawer-header p {
-  max-inline-size: 34ch;
-  margin: var(--space-1) 0 0;
-  color: var(--faint);
-  font-size: 0.76rem;
-  line-height: 1.5;
-  text-wrap: pretty;
 }
 .drawer-close {
   flex: none;
@@ -1503,8 +1495,12 @@ svg {
   inline-size: 100%;
   margin-block-start: var(--space-3);
   border-collapse: collapse;
+  table-layout: fixed;
   font-size: 0.76rem;
   text-align: start;
+}
+.claim-table thead th:first-child {
+  inline-size: 30%;
 }
 .claim-table th,
 .claim-table td {
@@ -1512,6 +1508,7 @@ svg {
   border-block-end: 1px solid var(--hairline);
   vertical-align: top;
   text-align: start;
+  overflow-wrap: anywhere;
 }
 .claim-table thead th {
   color: var(--faint);
@@ -1521,24 +1518,10 @@ svg {
   text-transform: uppercase;
 }
 .claim-table tbody th {
-  inline-size: 40%;
+  color: var(--cream);
   font-weight: 500;
 }
-.claim-table tbody th span {
-  display: block;
-  color: var(--cream);
-}
-.claim-table tbody th small {
-  display: block;
-  margin-block-start: 0.2rem;
-  color: var(--faint);
-  font-size: 0.68rem;
-  font-weight: 400;
-  line-height: 1.45;
-  text-wrap: pretty;
-}
 .claim-table.is-compact tbody th {
-  inline-size: auto;
   color: var(--mute);
 }
 .claim-table tr.is-divergent td,
@@ -1558,6 +1541,7 @@ svg {
 }
 
 .state-pill {
+  font-variant-numeric: tabular-nums;
   display: inline-block;
   padding: 0.1rem 0.45rem;
   border-radius: 999px;
@@ -1625,8 +1609,7 @@ svg {
   align-items: center;
   margin-block-start: var(--space-3);
 }
-.drawer-copy,
-.drawer-run-all {
+.drawer-copy {
   min-height: 2.5rem;
   padding: 0 var(--space-3);
   border: 1px solid var(--hairline-strong);
@@ -1637,106 +1620,14 @@ svg {
   cursor: pointer;
   transition: background 150ms var(--ease-out-quint);
 }
-.drawer-copy:hover:not(:disabled),
-.drawer-run-all:hover:not(:disabled) {
+.drawer-copy:hover:not(:disabled) {
   background: var(--char-lift);
 }
-.drawer-copy:disabled,
-.drawer-run-all:disabled {
+.drawer-copy:disabled {
   color: var(--faint);
   cursor: not-allowed;
 }
 
-.probe-list {
-  display: grid;
-  gap: var(--space-3);
-  margin: var(--space-3) 0 0;
-  padding: 0;
-  list-style: none;
-}
-.probe {
-  padding: var(--space-3);
-  border: 1px solid var(--hairline);
-  border-radius: var(--radius-sm);
-  background: var(--char-raised);
-}
-.probe.is-unavailable {
-  opacity: 0.55;
-}
-.probe-head {
-  display: flex;
-  gap: var(--space-3);
-  align-items: flex-start;
-  justify-content: space-between;
-}
-.probe-head strong {
-  display: block;
-  font-size: 0.86rem;
-  line-height: 1.35;
-  text-wrap: balance;
-}
-.probe-head button {
-  flex: none;
-  min-width: 3.5rem;
-  min-height: 2.25rem;
-  padding: 0 var(--space-3);
-  border: 1px solid var(--hairline-strong);
-  border-radius: var(--radius-sm);
-  background: transparent;
-  color: var(--cream);
-  font-size: 0.76rem;
-  cursor: pointer;
-}
-.probe-head button:hover:not(:disabled) {
-  background: var(--char-lift);
-}
-.probe-head button:disabled {
-  color: var(--faint);
-  cursor: not-allowed;
-}
-.probe-target {
-  display: block;
-  margin-block-start: 0.25rem;
-  font-family: var(--mono);
-  font-size: 0.7rem;
-  color: var(--faint);
-}
-.probe-proves {
-  max-inline-size: 56ch;
-  margin: var(--space-2) 0 0;
-  color: var(--mute);
-  font-size: 0.75rem;
-  line-height: 1.6;
-  text-wrap: pretty;
-}
-.probe-expect {
-  margin: var(--space-2) 0 0;
-  color: var(--faint);
-  font-size: 0.7rem;
-}
-.probe-expect code {
-  font-family: var(--mono);
-  color: var(--flame);
-}
-.probe-result {
-  margin-block-start: var(--space-3);
-  padding-block-start: var(--space-2);
-  border-block-start: 1px solid var(--hairline);
-}
-.probe-result-head {
-  display: flex;
-  flex-wrap: wrap;
-  gap: var(--space-2);
-  align-items: center;
-  font-size: 0.72rem;
-  color: var(--faint);
-}
-.probe-result-head code {
-  font-family: var(--mono);
-  color: var(--cream);
-}
-.probe-result pre,
-.probe-curl pre,
 .drawer-payload {
   margin: var(--space-2) 0 0;
   padding: var(--space-2);
@@ -1749,20 +1640,6 @@ svg {
   overflow-x: auto;
   white-space: pre-wrap;
   overflow-wrap: anywhere;
-}
-.probe-curl {
-  margin-block-start: var(--space-2);
-}
-.probe-curl summary {
-  color: var(--faint);
-  font-size: 0.72rem;
-  cursor: pointer;
-}
-.probe-curl summary:hover {
-  color: var(--mute);
-}
-.probe-curl .drawer-copy {
-  margin-block-start: var(--space-2);
 }
 
 .segment-card {
@@ -1799,27 +1676,6 @@ svg {
   font-size: 0.72rem;
 }
 
-.network-table code {
-  font-size: 0.7rem;
-  color: var(--cream);
-}
-.credential {
-  font-size: 0.7rem;
-  color: var(--faint);
-}
-.credential.is-access {
-  color: var(--live);
-}
-.credential.is-none {
-  color: var(--warning);
-}
-.network-ms {
-  display: block;
-  margin-block-start: 0.15rem;
-  color: var(--faint);
-  font-size: 0.68rem;
-}
-
 @media (max-width: 40rem) {
   .counter-toggle span {
     position: absolute;
@@ -1830,16 +1686,12 @@ svg {
     clip-path: inset(50%);
     white-space: nowrap;
   }
-  .claim-table tbody th {
-    inline-size: auto;
-  }
 }
 
 @media (prefers-reduced-motion: reduce) {
   .counter-toggle,
   .drawer-tabs button,
   .drawer-copy,
-  .drawer-run-all,
   .segment-bar span {
     transition: none;
   }

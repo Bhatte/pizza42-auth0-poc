@@ -5,8 +5,6 @@ import { jwtDecode } from "jwt-decode";
 import { Pizza42App } from "./Pizza42App.jsx";
 import { webConfig } from "./config.js";
 import { createApiClient } from "./lib/api.js";
-import { createRequestLog } from "./lib/request-log.js";
-import { createTokenClassifier } from "./lib/tokens.js";
 
 const EMAIL_VERIFIED_CLAIM = "https://pizza42.com/email_verified";
 
@@ -16,15 +14,6 @@ export default function App() {
     () =>
       createApiClient({
         baseUrl: webConfig.apiBaseUrl,
-        // The log names each credential by audience rather than storing it, so
-        // the evidence drawer can say "access token" or "ID token" without ever
-        // holding one.
-        log: createRequestLog({
-          classify: createTokenClassifier({
-            apiAudience: webConfig.auth0Audience,
-            clientId: webConfig.auth0ClientId,
-          }),
-        }),
       }),
     [],
   );

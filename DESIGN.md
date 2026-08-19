@@ -137,9 +137,8 @@ between them, price inline, Add button on the right.
 
 The presenter's surface, and the successor to the old Session details
 disclosure. A side panel, opened from a quiet control in the app header or by
-pressing `?`, carrying four tabs: the claims in each token side by side, live
-requests designed to be refused, the derived marketing profile, and a log of
-every call the page has made.
+pressing `?`, carrying two tabs: the claims in each token side by side, and the
+derived marketing profile beside the copy the Action signed at login.
 
 Three rules keep it from turning the storefront into a dashboard:
 
@@ -153,8 +152,13 @@ Three rules keep it from turning the storefront into a dashboard:
    still marks actions only; evidence uses `flame` and the state colours,
    because a panel where everything glows tells you nothing.
 
-Values in the panel are read, never asserted. It shows what a token says and
-what the API publishes, and says plainly that decoding is not verification.
+Values in the panel are read, never asserted: it shows what a token says and
+what the API publishes, and neither is a check anything depends on.
+
+The panel states values and does not explain them. Its reader already knows
+what an audience claim is, and a caption telling them would read as a lecture.
+Where something genuinely needs saying — why two columns disagree — one line
+says it. Row labels carry no commentary.
 
 ### Order summary
 
