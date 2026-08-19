@@ -11,7 +11,6 @@
 - **Customer profile**: derived identity and order context included in the ID token for the marketing demonstration.
 - **Marketing event**: a current-customer-only, Segment-shaped demonstration payload. It is simulated and must be labelled as such.
 - **Fresh token**: an access token obtained with cache bypass after the customer verifies their email.
-- **Linked identity**: a second sign-in method absorbed into an existing account. Only ever linked when both sides have a verified email address.
 - **Behind the counter**: the evidence panel in the authenticated storefront. It is a presenter's surface, not a customer's, and holds every term above. Do not call it a dashboard or a console in product copy.
 
 ## Trust rules

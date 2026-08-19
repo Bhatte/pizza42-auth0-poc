@@ -16,10 +16,7 @@ These limits are part of the POC boundary, not hidden follow-up work.
 - Auth0 Management API per-tenant rate limits, not the API itself, are the scaling ceiling on the ordering path. This is the main reason production keeps orders in a Pizza 42 datastore.
 - The evidence panel decodes tokens in the browser for display. That is reading, not verification, and no decision anywhere in the system depends on it. It also offers a token to the clipboard, which is a deliberate demonstration affordance and a real bearer credential: it is appropriate for a proof of concept with a presenter at the keyboard, and would not ship to customers.
 - The segment thresholds used to draw the progress bar in the evidence panel are a third copy of a rule that lives in the Action and the API. Only the bar depends on them; the segment name always comes from the server payload, so drift degrades an illustration rather than a result.
-- Account linking trusts `email_verified` as the identity provider reports it. Google verifies before setting it; a provider that sets it without verifying would defeat the rule, so adding one requires re-examining this.
-- Linking discards everything on the secondary record except the orders, which are merged explicitly. Nothing else is stored there today, so nothing else is lost, but any future metadata needs adding to that merge.
-- A linked customer's `sub` becomes the primary's. Order history survives because it lives in the profile that is kept; a system keying its own database on `sub` would need a migration step at the moment of linking.
-- The customer is not asked before their accounts are linked, and no audit record of the link is kept beyond the tenant log.
+- A customer who uses both sign-in methods has two accounts, and their order history is split across them. This is deliberate and the reasoning is in [design-decisions.md](design-decisions.md).
 - Google is the only planned social provider.
 - Account linking is not implemented.
 - A custom login domain may not be available on the trial tenant.

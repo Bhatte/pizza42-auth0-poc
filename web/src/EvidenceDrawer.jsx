@@ -15,7 +15,6 @@ const TABS = [
 ];
 
 const EMAIL_VERIFIED_CLAIM = "https://pizza42.com/email_verified";
-const IDENTITIES_CLAIM = "https://pizza42.com/identities";
 const ORDERS_CLAIM = "https://pizza42.com/orders";
 const CUSTOMER_PROFILE_CLAIM = "https://pizza42.com/customer_profile";
 
@@ -185,7 +184,7 @@ function SessionTab({ tokens, idTokenClaims, isVerified }) {
           </div>
           <div>
             <dt>Signed in with</dt>
-            <dd>{signInMethods(idClaims)}</dd>
+            <dd>{providerName(String(idClaims.sub ?? "").split("|")[0])}</dd>
           </div>
           <div>
             <dt>Email confirmed</dt>
@@ -239,19 +238,6 @@ function SessionTab({ tokens, idTokenClaims, isVerified }) {
       </section>
     </>
   );
-}
-
-// One account can carry several identities once they have been linked, and
-// which ones is the whole visible result of linking. Falls back to reading the
-// provider out of the subject for a token issued before the claim existed.
-function signInMethods(claims) {
-  const linked = claims?.[IDENTITIES_CLAIM];
-  const providers =
-    Array.isArray(linked) && linked.length > 0
-      ? linked
-      : [String(claims?.sub ?? "").split("|")[0]];
-
-  return providers.map(providerName).join(", ");
 }
 
 function ClaimValue({ claim, value, nowMs }) {

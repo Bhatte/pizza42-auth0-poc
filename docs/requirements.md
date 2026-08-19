@@ -15,18 +15,17 @@ This matrix maps the ten implementation requirements to the planned evidence. St
 |   9 | Save an order to the Auth0 profile                                   | Append to `app_metadata.orders`              | Live `app_metadata.orders` inspection before demo-data reset                                                    | Complete                        |
 |  10 | Add order history to the ID token at login                           | Auth0 Post-Login Action                      | Claim shown in Behind the counter; Action tests and shared golden fixtures; recapture a fresh token after reset | Deployed; evidence to recapture |
 
-## Beyond the ten
+## What requirement 6 does not cover
 
-Requirement 6 asks only that both sign-in methods work. It does not ask what
-happens when one person uses both, which is the state a real customer reaches
-by accident within a week: two accounts, one order history split across them,
-and a marketing segment derived from half of it.
+Requirement 6 asks only that both sign-in methods work, and they do. It does not
+ask what happens when one person uses both, which is a state a real customer
+reaches by accident: two accounts on one email address, order history split
+across them, and a marketing segment derived from half of it.
 
-Account linking is therefore built although nothing asked for it, and built to
-refuse rather than to guess — a link happens only when both identities carry a
-verified email address. The rule, the attack it exists to defeat and the
-trade-offs are in [design-decisions.md](design-decisions.md) and
-[architecture.md](architecture.md).
+That gap is real and it is knowingly left open. Closing it means account
+linking, and linking on a matching email address alone is an account-takeover
+route. [design-decisions.md](design-decisions.md) records the rule a correct
+implementation needs and why it is out of scope here.
 
 ## Acceptance rule
 

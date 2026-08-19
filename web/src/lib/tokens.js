@@ -14,12 +14,7 @@ export function decodeToken(raw) {
   }
 }
 
-export function audienceList(audience) {
-  if (Array.isArray(audience)) return audience;
-  return audience ? [audience] : [];
-}
-
-export function formatDuration(totalSeconds) {
+function formatDuration(totalSeconds) {
   const seconds = Math.max(0, Math.floor(totalSeconds));
   const hours = Math.floor(seconds / 3600);
   const minutes = Math.floor((seconds % 3600) / 60);

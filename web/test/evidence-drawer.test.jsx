@@ -39,7 +39,6 @@ const ID_TOKEN = jwt({
   exp: now + 3600,
   "https://pizza42.com/email_verified": true,
   "https://pizza42.com/orders": [{ id: "ord_1" }, { id: "ord_2" }],
-  "https://pizza42.com/identities": ["auth0", "google-oauth2"],
   "https://pizza42.com/customer_profile": PROFILE,
 });
 
@@ -128,26 +127,6 @@ describe("Behind the counter", () => {
     expect(screen.getByText("8 traits")).toBeInTheDocument();
     // Scope, order history and the profile are each absent from one side.
     expect(screen.getAllByText("not present").length).toBe(3);
-  });
-
-  it("names every identity linked to the account, not just the one used", async () => {
-    renderDrawer();
-
-    expect(
-      await screen.findByText("Email and password, Google"),
-    ).toBeInTheDocument();
-  });
-
-  it("reads the provider out of the subject for a token issued before linking", async () => {
-    const auth = createAuth({
-      getRawTokens: vi.fn().mockResolvedValue({
-        accessToken: ACCESS_TOKEN,
-        idToken: jwt({ sub: SUB, exp: now + 60 }),
-      }),
-    });
-    renderDrawer({ auth });
-
-    expect(await screen.findByText("Google")).toBeInTheDocument();
   });
 
   it("counts down to expiry rather than printing a timestamp", async () => {

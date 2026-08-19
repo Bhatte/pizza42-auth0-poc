@@ -5,12 +5,7 @@ import {
   formatTimestamp,
   providerName,
 } from "../src/lib/format.js";
-import {
-  audienceList,
-  decodeToken,
-  expiryStatus,
-  formatDuration,
-} from "../src/lib/tokens.js";
+import { decodeToken, expiryStatus } from "../src/lib/tokens.js";
 
 const API_AUDIENCE = "https://api.pizza42.com";
 
@@ -37,30 +32,21 @@ describe("reading a token", () => {
     expect(decodeToken("")).toBeNull();
     expect(decodeToken(undefined)).toBeNull();
   });
-
-  it("reads an audience whether it arrives as a string or a list", () => {
-    expect(audienceList(API_AUDIENCE)).toEqual([API_AUDIENCE]);
-    expect(
-      audienceList([API_AUDIENCE, "https://tenant.eu.auth0.com/userinfo"]),
-    ).toHaveLength(2);
-    expect(audienceList(undefined)).toEqual([]);
-  });
 });
 
 describe("expiry", () => {
-  it("counts down in the largest unit that still says something useful", () => {
-    expect(formatDuration(7325)).toBe("2h 2m");
-    expect(formatDuration(125)).toBe("2m 5s");
-    expect(formatDuration(9)).toBe("9s");
-    expect(formatDuration(-30)).toBe("0s");
-  });
-
-  it("reports how long a token has left", () => {
+  // Counts down in the largest unit that still says something useful, so a
+  // token with an hour on it does not tick a seconds counter at the reader.
+  it.each([
+    [7325, "2h 2m left"],
+    [600, "10m 0s left"],
+    [9, "9s left"],
+  ])("reports %i seconds as %s", (secondsLeft, label) => {
     const nowMs = 1_760_000_000_000;
-    const status = expiryStatus({ exp: nowMs / 1000 + 600 }, nowMs);
+    const status = expiryStatus({ exp: nowMs / 1000 + secondsLeft }, nowMs);
 
     expect(status).toMatchObject({ known: true, expired: false });
-    expect(status.label).toBe("10m 0s left");
+    expect(status.label).toBe(label);
   });
 
   it("says plainly when a token has already expired", () => {
