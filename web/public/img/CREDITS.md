@@ -24,4 +24,5 @@ one set.
 `../fonts/bricolage-latin.woff2` is [Bricolage
 Grotesque](https://fonts.google.com/specimen/Bricolage+Grotesque) by Mathieu
 Triay, under the SIL Open Font License 1.1. It is the variable `latin` subset
-covering the `opsz` (12-96) and `wght` (300-800) axes.
+covering the `opsz` (12-96) and `wght` (300-800) axes. The complete copyright
+notice and license are in [../fonts/OFL.txt](../fonts/OFL.txt).

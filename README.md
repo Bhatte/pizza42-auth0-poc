@@ -131,17 +131,18 @@ These and other explicit boundaries are in [docs/known-limitations.md](docs/know
 
 ## Status
 
-| Workstream                 | Local implementation         | Hosted evidence                               |
-| -------------------------- | ---------------------------- | --------------------------------------------- |
-| Repository controls and CI | Complete                     | Runs after branch push                        |
-| Auth0 tenant               | Configured                   | Deployed; RBAC off, both connections live     |
-| Auth0 Post-Login Action    | Tested                       | Deployed v2, bound to the post-login flow     |
-| Orders and profile API     | Tested                       | Deployed; 401/403 paths verified live         |
-| React ordering journey     | Tested and visually reviewed | Database and Google login paths exercised     |
-| Marketing demonstration    | Tested                       | Deployed; reseed a demo user before rehearsal |
+| Workstream                 | Local implementation         | Hosted evidence                           |
+| -------------------------- | ---------------------------- | ----------------------------------------- |
+| Repository controls and CI | Complete                     | Runs after branch push                    |
+| Auth0 tenant               | Configured                   | Deployed; RBAC off, both connections live |
+| Auth0 Post-Login Action    | Tested                       | Deployed v2, bound to the post-login flow |
+| Orders and profile API     | Tested                       | Deployed; 401/403 paths verified live     |
+| React ordering journey     | Tested and visually reviewed | Database and Google login paths exercised |
+| Marketing demonstration    | Tested                       | Deployed and revalidated after reset      |
 
 The Auth0 user store was intentionally reset on 17 August 2026 after live-path
-validation. Create fresh database and Google identities before the next demo.
+validation. Fresh synthetic database and Google identities were then created,
+and the complete hosted path was revalidated on 19 August 2026.
 
 No hosted result is claimed until the corresponding row in [docs/test-matrix.md](docs/test-matrix.md) has evidence.
 
@@ -157,6 +158,8 @@ No hosted result is claimed until the corresponding row in [docs/test-matrix.md]
 - [Test matrix](docs/test-matrix.md)
 - [Deployment](docs/deployment.md)
 - [Contributing](CONTRIBUTING.md)
+- [MIT License](LICENSE)
+- [Third-party notices](THIRD_PARTY_NOTICES.md)
 
 Universal Login branding lives in the Auth0 tenant, not in this repository. It
 is tracked in [auth0/tenant-config.md](auth0/tenant-config.md) section 8 and was

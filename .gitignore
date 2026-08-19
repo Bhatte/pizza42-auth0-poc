@@ -1,9 +1,7 @@
-# Local source material supplied for the interview exercise. These files are
-# intentionally excluded from the repository and must not be shared.
-/Auth0 Tech Challenge.docx
-/Internal Briefing_ Pizza 42 (Confidential).docx
-/Panel Members (For Sharing).docx
-/Pizza42_Master_Build_and_Panel_Execution_Spec_v3.md
+# Local source material and execution specifications. Root-level office
+# documents and private build specs are intentionally excluded.
+/*.docx
+/*_Spec_*.md
 
 # Rehearsal notes for the panel. SECURITY.md forbids committing internal
 # briefing documents, and a demo script with anticipated questions is one.

@@ -2,6 +2,7 @@
   "name": "pizza42-auth0-poc",
   "version": "0.1.0",
   "private": true,
+  "license": "MIT",
   "type": "module",
   "description": "Auth0 identity proof of concept for Pizza 42",
   "engines": {

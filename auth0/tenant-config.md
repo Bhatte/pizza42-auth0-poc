@@ -217,10 +217,12 @@ This text is stored under `prompts/login/custom-text/en`.
 
 ## 9. Demo data state
 
-The tenant contained four test identities and five stored orders during live
-validation. All users were deleted on 17 August 2026 at the repository owner's
-request. The current baseline is zero users and zero user `app_metadata`.
-Auth0 audit logs remain available according to tenant retention policy.
+The tenant contained four test identities and five stored orders during the
+first live validation. All users were deleted on 17 August 2026 at the
+repository owner's request. Fresh synthetic identities and order data were
+then created for final validation, and the complete hosted path was confirmed
+again on 19 August 2026. No real customer data is stored. Auth0 audit logs
+remain available according to tenant retention policy.
 
 ## 10. Recreating this tenant
 

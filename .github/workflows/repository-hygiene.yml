@@ -32,7 +32,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          if git ls-files | grep -E '\.(docx|pptx)$|Master_Build_and_Panel_Execution_Spec'; then
+          if git ls-files | grep -E '\.(docx|pptx)$|(^|/)[^/]*_Spec_[^/]*\.md$|(^|/)demo-prep/'; then
             echo "Internal briefing or panel material must not be committed."
             exit 1
           fi

@@ -30,8 +30,8 @@ the policy.
 | Web security  | CORS from an untrusted origin            | No `Access-Control-Allow-Origin`                | Hosted: pass                    |
 | Identity      | RBAC disabled                            | Token carries `scope`, no `permissions` claim   | Tenant: pass                    |
 | Identity      | Universal Login reachable                | `/authorize` redirects to the hosted login page | Tenant: pass                    |
-| Web security  | SPA carries CSP, HSTS and framing denial | Headers present on the hosted document          | Not run: verify after redeploy  |
-| Web security  | Silent authentication under the CSP      | Session restores; no `frame-src` violation      | Not run: verify after redeploy  |
+| Web security  | SPA carries CSP, HSTS and framing denial | Headers present on the hosted document          | Hosted: pass, 19 Aug 2026       |
+| Web security  | Session restoration under the CSP        | Rotating refresh token restores the session     | Hosted: pass, 19 Aug 2026       |
 
 ## Verified locally against the real tenant
 
@@ -40,17 +40,15 @@ the policy.
 | Authorization | Wrong scope, real tenant-issued token      | 403 with `scope="create:orders"` challenge | Pass               |
 | Resilience    | Management API failure                     | 502 `identity_store_unavailable`, logged   | Pass               |
 | Web security  | Production bundle behind the shipping CSP  | Page loads with no CSP violation           | Pass: local origin |
-| Web security  | `auth0-spa-js` blob Web Worker under CSP   | Worker spawns; no `script-src` violation   | Pass: local origin |
+| Web security  | Persistent refresh-token path under CSP    | Token exchange uses the allowed connection | Pass: local origin |
 | Tenant        | `tenant-config.md` matches the live tenant | Every documented value reads back equal    | Pass: 18 Aug 2026  |
 
 The CSP rows were exercised by serving the production build behind the exact
-headers in `web/vercel.json`. The first attempt **failed**: `script-src 'self'`
-blocked the `blob:` Web Worker `auth0-spa-js` uses to hold refresh tokens, which
-is why `worker-src 'self' blob:` is in the policy. `frame-src` for the tenant is
-present and correct for the SDK's silent-authentication iframe, but the SDK only
-attempts that iframe when its session cookie exists, so **that directive is
-reasoned, not yet observed** — confirm it on the hosted origin after a real
-login before the rehearsal.
+headers in `web/vercel.json` and then through the hosted origin. The application
+persists rotating refresh tokens in `localStorage`; `auth0-spa-js` only creates
+its token Web Worker for memory storage, and the iframe fallback is not enabled.
+The shipping policy therefore needs neither `worker-src blob:` nor `frame-src`.
+Token exchange remains explicitly allowed through `connect-src`.
 
 ## Verified by automated test only
 
@@ -82,23 +80,23 @@ the Action alone and confirming both suites fail.
 
 ## Interactive browser validation
 
-| Area           | Test                                 | Expected                                    | Status                                     |
-| -------------- | ------------------------------------ | ------------------------------------------- | ------------------------------------------ |
-| Authentication | Database signup and login            | Customer reaches the SPA                    | Pass: live tenant                          |
-| Authentication | Google login                         | Customer reaches the SPA                    | Pass: custom Google keys                   |
-| Authentication | Password reset                       | Reset completes and login succeeds          | Not run                                    |
-| Verification   | Unverified customer signs in         | Sign-in succeeds, ordering blocked          | Sign-in observed; API block automated      |
-| Verification   | Fresh token after verifying          | Cache bypass returns claim `true`           | Automated; capture again after reset       |
-| Ordering       | Verified customer places an order    | 201 with authoritative total                | Pass: five live orders                     |
-| Profile        | Order lands in `app_metadata.orders` | Order present in the Auth0 profile          | Pass: inspected live                       |
-| Claims         | Fresh login after ordering           | ID token contains order history and profile | Action deployed; capture again after reset |
-| Marketing      | Derived traits for a seeded account  | `favourite_store`, `last_item_ordered` set  | Automated; reseed before rehearsal         |
-| Deployment     | Second device and network            | Hosted login and order path succeeds        | Not run                                    |
+| Area           | Test                                 | Expected                                    | Status                                |
+| -------------- | ------------------------------------ | ------------------------------------------- | ------------------------------------- |
+| Authentication | Database signup and login            | Customer reaches the SPA                    | Pass: live tenant                     |
+| Authentication | Google login                         | Customer reaches the SPA                    | Pass: custom Google keys              |
+| Authentication | Password reset                       | Reset completes and login succeeds          | Pass: live tenant, 19 Aug 2026        |
+| Verification   | Unverified customer signs in         | Sign-in succeeds, ordering blocked          | Sign-in observed; API block automated |
+| Verification   | Fresh token after verifying          | Cache bypass returns claim `true`           | Pass: live tenant, 19 Aug 2026        |
+| Ordering       | Verified customer places an order    | 201 with authoritative total                | Pass: five live orders                |
+| Profile        | Order lands in `app_metadata.orders` | Order present in the Auth0 profile          | Pass: inspected live                  |
+| Claims         | Fresh login after ordering           | ID token contains order history and profile | Pass: live tenant, 19 Aug 2026        |
+| Marketing      | Derived traits for a seeded account  | `favourite_store`, `last_item_ordered` set  | Pass: live tenant, 19 Aug 2026        |
+| Deployment     | Second device and network            | Hosted login and order path succeeds        | Pass: hosted path, 19 Aug 2026        |
 
-The Google connection now uses Pizza 42-owned Google Cloud OAuth credentials.
-The tenant's four validation identities and five orders were deleted on 17
-August 2026. The pass rows record evidence observed before that intentional
-reset; create fresh data before the next rehearsal.
+The Google connection uses Pizza 42-owned Google Cloud OAuth credentials. The
+original validation identities and orders were deleted on 17 August 2026;
+fresh synthetic data was created and every interactive row above was confirmed
+again on 19 August 2026.
 
 ## Acceptance rule
 
