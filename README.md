@@ -25,6 +25,7 @@ Pizza 42 is a security-focused Auth0 proof of concept for a customer ordering jo
 - The browser submits only SKU and quantity; the API owns the catalogue, resolves prices, and calculates totals.
 - Successful orders are appended to Auth0 `app_metadata.orders` using a least-privilege Management API client.
 - A Post-Login Action adds order history and a derived customer profile to namespaced ID-token claims.
+- One person who signs up with a password and later returns through Google ends up with one account, linked only when both sides have a verified email address.
 - A protected, customer-scoped endpoint produces a Segment-shaped demonstration event without making ordering depend on a marketing destination.
 - The session behind all of it, and the marketing profile derived from it, can be read from the running application without a tenant login.
 
@@ -38,15 +39,15 @@ never open by default; it exists so that the session and the derived marketing
 profile can be read beside the order they describe rather than in another
 window.
 
-| Tab     | What it answers                                                                                     | Replaces                 |
-| ------- | --------------------------------------------------------------------------------------------------- | ------------------------ |
-| Session | What each token asserts, and whether its audience matches the audience this API deployment enforces | Browser devtools, jwt.io |
-| Insight | The derived marketing profile, and the Action's signed copy beside the API's live one               | The tenant user record   |
+| Tab     | What it answers                                                                       | Replaces                 |
+| ------- | ------------------------------------------------------------------------------------- | ------------------------ |
+| Session | Who is signed in, which identities their account carries, and what each token asserts | Browser devtools, jwt.io |
+| Insight | The derived marketing profile, and the Action's signed copy beside the API's live one | The tenant user record   |
 
-Both tabs read: they decode tokens for display and call `GET /api/meta` for the
-deployment's own account of what it enforces. Neither is verification. The API
+The panel decodes tokens for display. That is not verification: the API
 re-reads every value from a signature it checks itself, and nothing the panel
-displays is trusted by anything.
+shows is trusted by anything. Both raw tokens are offered to the clipboard so
+the same claims can be checked from outside the browser.
 
 ## Architecture
 

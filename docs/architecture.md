@@ -42,6 +42,36 @@ The client sends item identifiers and quantities. The API looks up each item in 
 
 The orders service uses a machine-to-machine credential with `read:users` and `update:users_app_metadata`, not broad `update:users`. The token is cached in memory until shortly before expiry. Secrets remain in the API environment and are never returned to the SPA or written to logs.
 
+## Account linking
+
+A customer who signs up with a password and later returns through Google is one
+person, and Auth0 will not work that out on its own: two identities sharing an
+email address is not proof they share an owner. The Post-Login Action links them
+only when **both** sides carry `email_verified: true`.
+
+That rule is the whole security argument. Without it, anyone could register
+another person's address on the database connection, never open the verification
+mail, and wait — the day the real owner arrived through Google, the attacker's
+password would open their account. The Action also refuses when more than one
+verified account claims the address, when the authenticating identity is already
+a primary, and when there is no address to search on. Each of those is a refusal
+to guess rather than a case to handle cleverly.
+
+The pre-existing account is the primary; the identity that just authenticated
+becomes its secondary, and `api.authentication.setPrimaryUser` moves the session
+onto the primary so the token is not issued for a record that no longer exists.
+Linking discards the secondary's metadata, so the orders are merged onto the
+primary first, deduplicated by order id. Claims are then derived from the
+account that was kept rather than the identity used to reach it, and a
+namespaced `identities` claim names every provider the account now carries.
+
+Two properties hold this together operationally. The trigger also fires on
+refresh-token exchange, so linking is skipped there rather than putting two
+Management API round trips on every silent refresh the SPA makes. And every
+failure is swallowed: an unreachable Management API leaves the accounts
+separate and the customer signed in, because two accounts is a worse experience
+than one but a failed sign-in is worse than both.
+
 ## Marketing path
 
 The POC exposes `POST /api/marketing/identify` and `GET /api/marketing/events` behind the same access-token validation and `read:orders` permission. The server ignores browser-supplied traits, reads the current token subject's order history, derives a Segment-shaped identify event, and keeps a bounded in-memory demonstration history. Reads are filtered by the access-token subject.
@@ -57,13 +87,15 @@ enforced, and the order quantity ceilings.
 
 None of it is secret. Every value is already visible in any token the tenant
 issues or in a rejection this API returns, and an OIDC provider publishes the
-equivalent at its discovery endpoint. What it buys is that a reviewer can
-compare the audience their token carries against the audience this deployment
+equivalent at its discovery endpoint. What it buys is that a reviewer with a
+token can compare the audience it carries against the audience this deployment
 enforces without being handed a tenant dashboard login, and that the published
 quantity ceiling is read from the same constant the order schema enforces
 rather than being a number in a document that can drift. A test asserts both:
 that the published ceiling is the enforced ceiling, and that the payload
 carries no credential.
+
+It is read with `curl`, not by the application. No browser code calls it.
 
 ## HTTP boundary controls
 

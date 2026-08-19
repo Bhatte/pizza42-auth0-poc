@@ -15,6 +15,19 @@ This matrix maps the ten implementation requirements to the planned evidence. St
 |   9 | Save an order to the Auth0 profile                                   | Append to `app_metadata.orders`              | Live `app_metadata.orders` inspection before demo-data reset                                                    | Complete                        |
 |  10 | Add order history to the ID token at login                           | Auth0 Post-Login Action                      | Claim shown in Behind the counter; Action tests and shared golden fixtures; recapture a fresh token after reset | Deployed; evidence to recapture |
 
+## Beyond the ten
+
+Requirement 6 asks only that both sign-in methods work. It does not ask what
+happens when one person uses both, which is the state a real customer reaches
+by accident within a week: two accounts, one order history split across them,
+and a marketing segment derived from half of it.
+
+Account linking is therefore built although nothing asked for it, and built to
+refuse rather than to guess — a link happens only when both identities carry a
+verified email address. The rule, the attack it exists to defeat and the
+trade-offs are in [design-decisions.md](design-decisions.md) and
+[architecture.md](architecture.md).
+
 ## Acceptance rule
 
 UI state is not evidence of authorization. Requirements 7 and 8 must be proved by direct API calls that bypass the SPA. Requirement 9 must be verified in the Auth0 profile, and requirement 10 requires a newly issued ID token.

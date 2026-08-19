@@ -72,10 +72,10 @@ Trade-off: the POC proves payload shape and access control, not delivery to a re
 
 ## Account linking
 
-Decision: do not automatically link social and database identities by matching email address.
+Decision: link a social and a database identity automatically when both carry a verified email address, and never otherwise.
 
-Alternatives considered: silent linking when the email strings match.
+Alternatives considered: linking on email equality alone; leaving the accounts separate; a user-initiated flow where the customer signs in to the second account and consents to the merge.
 
-Why: email equality alone is not enough proof that two identities belong to the same person. Incorrect linking can expose another customer's data.
+Why: email equality alone is not proof that two identities belong to the same person, because an unverified registration on someone else's address is free to make and linking on it hands over the account. Requiring both sides to be verified means the address has been demonstrated twice, once by each provider, which is the same evidence a consent flow would ultimately rest on. Leaving the accounts separate is safe but wrong for the customer: their order history splits in two, and the segment marketing puts them in is then derived from half of it.
 
-Trade-off: a customer who uses both methods may initially have separate accounts. A production linking flow would require re-authentication and explicit consent.
+Trade-off: the customer is never asked. A production flow would add explicit consent, because merging two accounts is a thing people should be told about, and would keep an audit record of every link. The Action also trusts `email_verified` as reported by the provider, which is sound for Google and would need re-examining before adding a provider that sets the flag without verifying anything.

@@ -75,6 +75,14 @@ login before the rehearsal.
 | Contract      | `/api/meta` carries no credential or secret   | Payload free of secret material               | Pass   |
 | Evidence      | Claim table survives a token it cannot read   | Unreadable token decodes to nothing, not part | Pass   |
 | Evidence      | Panel is absent until it is asked for         | No evidence in the ordering view until opened | Pass   |
+| Linking       | Unverified candidate is refused               | Accounts stay separate, no link call made     | Pass   |
+| Linking       | Two verified accounts on one address          | Refused as ambiguous rather than guessed      | Pass   |
+| Linking       | An identity is never its own match            | Self excluded from the candidate list         | Pass   |
+| Linking       | Orders move before the link destroys them     | Metadata write ordered ahead of the link      | Pass   |
+| Linking       | Claims describe the account that was kept     | Orders and profile read from the primary      | Pass   |
+| Linking       | Refresh exchange makes no Management call     | No search on `oauth2-refresh-token`           | Pass   |
+| Linking       | Management API failure never blocks login     | Claims still issued, accounts left separate   | Pass   |
+| Linking       | Client secret goes only to the token endpoint | Absent from search, patch and link requests   | Pass   |
 
 The foreign-issuer row is proved with a second test issuer that signs with its
 own key under the same `kid`, so it exercises signature verification rather
@@ -83,19 +91,19 @@ the Action alone and confirming both suites fail.
 
 ## Interactive browser validation
 
-| Area           | Test                                  | Expected                                     | Status                                     |
-| -------------- | ------------------------------------- | -------------------------------------------- | ------------------------------------------ |
-| Authentication | Database signup and login             | Customer reaches the SPA                     | Pass: live tenant                          |
-| Authentication | Google login                          | Customer reaches the SPA                     | Pass: custom Google keys                   |
-| Authentication | Password reset                        | Reset completes and login succeeds           | Not run                                    |
-| Verification   | Unverified customer signs in          | Sign-in succeeds, ordering blocked           | Sign-in observed; API block automated      |
-| Verification   | Fresh token after verifying           | Cache bypass returns claim `true`            | Automated; capture again after reset       |
-| Ordering       | Verified customer places an order     | 201 with authoritative total                 | Pass: five live orders                     |
-| Profile        | Order lands in `app_metadata.orders`  | Order present in the Auth0 profile           | Pass: inspected live                       |
-| Claims         | Fresh login after ordering            | ID token contains order history and profile  | Action deployed; capture again after reset |
-| Evidence       | Token audience matches the deployment | Panel reports agreement on the hosted origin | Not run: verify after redeploy             |
-| Marketing      | Derived traits for a seeded account   | `favourite_store`, `last_item_ordered` set   | Automated; reseed before rehearsal         |
-| Deployment     | Second device and network             | Hosted login and order path succeeds         | Not run                                    |
+| Area           | Test                                          | Expected                                    | Status                                     |
+| -------------- | --------------------------------------------- | ------------------------------------------- | ------------------------------------------ |
+| Authentication | Database signup and login                     | Customer reaches the SPA                    | Pass: live tenant                          |
+| Authentication | Google login                                  | Customer reaches the SPA                    | Pass: custom Google keys                   |
+| Authentication | Password reset                                | Reset completes and login succeeds          | Not run                                    |
+| Verification   | Unverified customer signs in                  | Sign-in succeeds, ordering blocked          | Sign-in observed; API block automated      |
+| Verification   | Fresh token after verifying                   | Cache bypass returns claim `true`           | Automated; capture again after reset       |
+| Ordering       | Verified customer places an order             | 201 with authoritative total                | Pass: five live orders                     |
+| Profile        | Order lands in `app_metadata.orders`          | Order present in the Auth0 profile          | Pass: inspected live                       |
+| Claims         | Fresh login after ordering                    | ID token contains order history and profile | Action deployed; capture again after reset |
+| Linking        | Password signup, then the same Google address | Second sign-in lands on one account         | Not run: verify after the Action redeploys |
+| Marketing      | Derived traits for a seeded account           | `favourite_store`, `last_item_ordered` set  | Automated; reseed before rehearsal         |
+| Deployment     | Second device and network                     | Hosted login and order path succeeds        | Not run                                    |
 
 The Google connection now uses Pizza 42-owned Google Cloud OAuth credentials.
 The tenant's four validation identities and five orders were deleted on 17
