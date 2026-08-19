@@ -71,8 +71,7 @@ login before the rehearsal.
 | History       | Order placed without a new sign-in            | Appears in Recent orders immediately          | Pass   |
 | Marketing     | Browser-supplied traits ignored               | Traits derived server-side from `sub`         | Pass   |
 | Marketing     | Action and API derive identical profiles      | Shared golden fixtures agree in both suites   | Pass   |
-| Contract      | `/api/meta` publishes the enforced ceiling    | Published limit accepted, one above rejected  | Pass   |
-| Contract      | `/api/meta` carries no credential or secret   | Payload free of secret material               | Pass   |
+| Contract      | Order quantity ceiling is enforced            | At the ceiling accepted, one above rejected   | Pass   |
 | Evidence      | Claim table survives a token it cannot read   | Unreadable token decodes to nothing, not part | Pass   |
 | Evidence      | Panel is absent until it is asked for         | No evidence in the ordering view until opened | Pass   |
 

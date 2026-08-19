@@ -7,15 +7,8 @@ export const CLAIMS = Object.freeze({
   emailVerified: `${CLAIM_NAMESPACE}email_verified`,
 });
 
-// The bounded order contract from CONTEXT.md. The order schema enforces it and
-// GET /api/meta publishes it, so the storefront and any reviewer read the same
-// ceiling from one place rather than three hard-coded twenties.
+// The bounded order contract from CONTEXT.md. One constant the order schema
+// enforces and the storefront's stepper reads, rather than hard-coded twenties
+// in both places drifting apart.
 export const MAX_LINE_QUANTITY = 20;
 export const MAX_ORDER_LINES = 20;
-
-export const REQUIRED_SCOPES = Object.freeze({
-  "GET /api/orders": ["read:orders"],
-  "POST /api/orders": ["create:orders"],
-  "POST /api/marketing/identify": ["read:orders"],
-  "GET /api/marketing/events": ["read:orders"],
-});

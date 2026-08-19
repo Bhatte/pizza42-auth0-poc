@@ -48,25 +48,6 @@ The POC exposes `POST /api/marketing/identify` and `GET /api/marketing/events` b
 
 The SPA invokes the simulation independently of menu loading and checkout and treats failure as non-blocking. The production design is asynchronous: Pizza 42 domain events flow through an event bus or supported Auth0 log stream, then into Segment or Braze. Login and checkout continue if those systems are unavailable.
 
-## Published configuration
-
-`GET /api/meta` is public and unauthenticated. It returns the issuer and
-audience this deployment accepts, the signing algorithm, the scope required per
-operation, the claim namespace, the claim and route where verified email is
-enforced, and the order quantity ceilings.
-
-None of it is secret. Every value is already visible in any token the tenant
-issues or in a rejection this API returns, and an OIDC provider publishes the
-equivalent at its discovery endpoint. What it buys is that a reviewer with a
-token can compare the audience it carries against the audience this deployment
-enforces without being handed a tenant dashboard login, and that the published
-quantity ceiling is read from the same constant the order schema enforces
-rather than being a number in a document that can drift. A test asserts both:
-that the published ceiling is the enforced ceiling, and that the payload
-carries no credential.
-
-It is read with `curl`, not by the application. No browser code calls it.
-
 ## HTTP boundary controls
 
 The API applies security headers, an exact CORS origin allowlist, a 16 KiB JSON body limit, process-local request limiting, strict schemas, and safe JSON errors. These controls reduce accidental exposure and common abuse but do not replace edge rate limiting, monitoring, or a web application firewall in production.

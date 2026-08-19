@@ -2,6 +2,7 @@ import request from "supertest";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 
 import { createApp } from "../src/app.js";
+import { MAX_LINE_QUANTITY } from "../src/config/contracts.js";
 import { createTestIssuer } from "./helpers/test-issuer.js";
 
 // Everything an order needs, so a rejection can only be about the one thing a
@@ -40,67 +41,32 @@ describe("GET /", () => {
     expect(response.body).toEqual({
       service: "Pizza 42 Orders API",
       health: "/api/health",
-      meta: "/api/meta",
       menu: "/api/menu",
     });
   });
 });
 
-describe("GET /api/meta", () => {
-  it("publishes what the API enforces, so a reviewer needs no tenant login", async () => {
-    const response = await request(createApp({ authConfig })).get("/api/meta");
-
-    expect(response.status).toBe(200);
-    expect(response.body).toMatchObject({
-      issuer: issuer.issuer,
-      audience: "https://api.pizza42.com",
-      token_signing_alg: "RS256",
-      claim_namespace: "https://pizza42.com/",
-      verified_email_claim: "https://pizza42.com/email_verified",
-      verified_email_enforced_on: ["POST /api/orders"],
-    });
-    expect(response.body.required_scopes["POST /api/orders"]).toEqual([
-      "create:orders",
-    ]);
-  });
-
-  // A published limit that is not the enforced limit is worse than no published
-  // limit, because someone will quote it.
-  it("publishes the same quantity ceiling the order schema actually enforces", async () => {
+describe("order quantity ceiling", () => {
+  // The constant the storefront's stepper caps at has to be the constant the
+  // schema refuses past, or the browser offers a quantity the API rejects.
+  it("accepts an order at the ceiling and refuses one above it", async () => {
     const ordersRepository = {
       appendForUser: async (_subject, order) => order,
     };
     const app = createApp({ authConfig, ordersRepository });
-    const ceiling = (await request(app).get("/api/meta")).body
-      .max_line_quantity;
     const accessToken = await issuer.issueToken(ORDER_READY_TOKEN);
 
-    const atCeiling = await request(app)
-      .post("/api/orders")
-      .set("authorization", `Bearer ${accessToken}`)
-      .send({
-        store: "Dublin Camden Street",
-        items: [{ sku: "PIZ-MARG-L", qty: ceiling }],
-      });
-    const aboveCeiling = await request(app)
-      .post("/api/orders")
-      .set("authorization", `Bearer ${accessToken}`)
-      .send({
-        store: "Dublin Camden Street",
-        items: [{ sku: "PIZ-MARG-L", qty: ceiling + 1 }],
-      });
+    const place = (qty) =>
+      request(app)
+        .post("/api/orders")
+        .set("authorization", `Bearer ${accessToken}`)
+        .send({
+          store: "Dublin Camden Street",
+          items: [{ sku: "PIZ-MARG-L", qty }],
+        });
 
-    expect(atCeiling.status).toBe(201);
-    expect(aboveCeiling.status).toBe(400);
-  });
-
-  it("carries no credential or secret", async () => {
-    const response = await request(createApp({ authConfig })).get("/api/meta");
-
-    const body = JSON.stringify(response.body).toLowerCase();
-    for (const forbidden of ["secret", "client_id", "password"]) {
-      expect(body).not.toContain(forbidden);
-    }
+    expect((await place(MAX_LINE_QUANTITY)).status).toBe(201);
+    expect((await place(MAX_LINE_QUANTITY + 1)).status).toBe(400);
   });
 });
 
