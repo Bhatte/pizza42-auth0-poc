@@ -215,61 +215,14 @@ English login copy is:
 
 This text is stored under `prompts/login/custom-text/en`.
 
-## 9. Transactional email
-
-No custom email provider is configured, so the tenant uses Auth0's built-in
-development email service and every message is Auth0's stock template.
-
-That default is wrong for this tenant in one specific way. It closes with:
-
-> If you are having any issues with your account, please don't hesitate to
-> contact us by replying to this mail.
-
-Nobody reads that mailbox. The built-in service sends from an Auth0-owned
-no-reply address, so the one instruction the email gives a stuck customer is an
-instruction that fails silently.
-
-[emails/reset-password.html](emails/reset-password.html) is the replacement:
-Pizza 42's palette, a bulletproof button that survives Outlook, a wordmark built
-from a table cell rather than an image because most clients block remote images
-and Gmail strips SVG outright, the reset URL repeated as selectable text for
-when the button does not work, and a footer that says the address is unmonitored
-and points at the storefront instead.
-
-**It cannot be applied yet.** Custom email templates require a configured email
-provider — the CLI says so itself:
-
-```text
-Manage custom email templates. This requires a custom email provider to be
-configured for the tenant.
-```
-
-So the order is:
-
-1. Configure a provider (SMTP, SendGrid, Mailgun, SES, Postmark, Azure).
-2. Apply the template:
-
-   ```bash
-   auth0 email templates update reset_email
-   ```
-
-   Subject: `Reset your Pizza 42 password`. Set the URL lifetime to 24 hours to
-   match what the copy promises.
-
-3. Send yourself a reset and read it on a phone.
-
-Until step 1 happens, password reset still works — it just arrives in Auth0's
-default wrapper, and the built-in service is rate-limited and documented by
-Auth0 as development-only.
-
-## 10. Demo data state
+## 9. Demo data state
 
 The tenant contained four test identities and five stored orders during live
 validation. All users were deleted on 17 August 2026 at the repository owner's
 request. The current baseline is zero users and zero user `app_metadata`.
 Auth0 audit logs remain available according to tenant retention policy.
 
-## 11. Recreating this tenant
+## 10. Recreating this tenant
 
 ```bash
 auth0 login
