@@ -669,6 +669,10 @@ svg {
 .app-shell {
   min-height: 100vh;
   background: var(--char);
+  /* Only ever non-zero above 72rem, where the page steps aside for the
+     evidence panel. Transitioned so the page slides over rather than jumping
+     when the panel opens beside it. */
+  transition: padding-inline-end 260ms var(--ease-out-expo);
 }
 .app-header {
   border-bottom: 0.0625rem solid var(--hairline);
@@ -1597,10 +1601,132 @@ svg {
 }
 
 @media (prefers-reduced-motion: reduce) {
+  .app-shell,
   .counter-toggle,
   .drawer-tabs button,
   .drawer-copy,
   .segment-bar span {
     transition: none;
+  }
+}
+
+/* ------------------------------------------------------------- Motion -- */
+/* Every entrance here animates translate, blur or scale — never opacity.
+   An opacity entrance pins at its start value whenever frames are not
+   composited, and the element then ships invisible. These all fail open: if
+   the animation never runs, the base style is the finished state, so the worst
+   case is content that arrived without moving.
+
+   The global prefers-reduced-motion reset above already forces every duration
+   and delay here to nothing. */
+
+/* Tonight's menu arrives as a hand of cards rather than a block. 40ms apart is
+   enough to read as sequence and short enough that the last card is in under a
+   third of a second. */
+.menu-list .dish {
+  animation: dish-in 260ms var(--ease-out-quint) backwards;
+  animation-delay: calc(var(--dish-index, 0) * 40ms);
+}
+@keyframes dish-in {
+  from {
+    translate: 0 0.7rem;
+    filter: blur(4px);
+  }
+}
+
+.basket-lines li {
+  animation: line-in 200ms var(--ease-out-quint);
+}
+@keyframes line-in {
+  from {
+    translate: 0 -0.4rem;
+    filter: blur(3px);
+  }
+}
+
+/* Keyed on their own value in the markup, so each change remounts the element
+   and replays this. A number that moves is a number that got noticed. */
+.tick {
+  display: inline-block;
+  animation: tick 220ms var(--ease-out-quint);
+}
+@keyframes tick {
+  from {
+    scale: 1.28;
+    color: var(--flame);
+  }
+}
+
+.order-result p {
+  animation: result-in 220ms var(--ease-out-quint);
+}
+.order-result svg path {
+  stroke-dasharray: 20;
+  animation: check-draw 320ms var(--ease-out-quint) 60ms backwards;
+}
+@keyframes result-in {
+  from {
+    translate: 0 0.4rem;
+    filter: blur(3px);
+  }
+}
+@keyframes check-draw {
+  from {
+    stroke-dashoffset: 20;
+  }
+}
+
+/* The one moment the customer is waiting on someone else. A slow sweep says
+   "working" without a spinner claiming progress it cannot measure. */
+.checkout-button.is-sending {
+  position: relative;
+  overflow: hidden;
+}
+.checkout-button.is-sending::after {
+  content: "";
+  position: absolute;
+  inset-block: 0;
+  inline-size: 40%;
+  background: linear-gradient(
+    90deg,
+    transparent,
+    oklch(100% 0 0 / 0.22),
+    transparent
+  );
+  animation: sending-sweep 1200ms linear infinite;
+}
+@keyframes sending-sweep {
+  from {
+    inset-inline-start: -40%;
+  }
+  to {
+    inset-inline-start: 100%;
+  }
+}
+
+.drawer {
+  animation: drawer-in 260ms var(--ease-out-expo);
+}
+@keyframes drawer-in {
+  from {
+    translate: 100% 0;
+  }
+}
+
+/* Remounted per tab, so switching reads as a change of subject rather than a
+   redraw. */
+.drawer-body {
+  animation: panel-in 200ms var(--ease-out-quint);
+}
+@keyframes panel-in {
+  from {
+    translate: 0.7rem 0;
+    filter: blur(3px);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .checkout-button.is-sending::after {
+    display: none;
   }
 }

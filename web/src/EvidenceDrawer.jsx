@@ -77,6 +77,7 @@ export function EvidenceDrawer({ open, onClose, auth, isVerified, insight }) {
       <TabList tab={tab} onChange={setTab} />
 
       <div
+        key={tab}
         className="drawer-body"
         id={`drawer-panel-${tab}`}
         role="tabpanel"

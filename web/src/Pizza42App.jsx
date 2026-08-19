@@ -145,7 +145,7 @@ function MenuList({ menuState, onAdd, layout = "showcase" }) {
   return (
     <ul className={`menu-list is-${layout}`}>
       {menuState.menu.items.map((item, index) => (
-        <li key={item.sku} className="dish">
+        <li key={item.sku} className="dish" style={{ "--dish-index": index }}>
           <div className="dish-frame">
             <DishPhoto
               sku={item.sku}
@@ -519,7 +519,11 @@ function OrderingExperience({ auth, api }) {
           <aside className="basket" aria-label="Your order">
             <div className="basket-heading">
               <h2>Your order</h2>
-              <span>{itemCount === 1 ? "1 item" : `${itemCount} items`}</span>
+              <span>
+                <span key={itemCount} className="tick">
+                  {itemCount === 1 ? "1 item" : `${itemCount} items`}
+                </span>
+              </span>
             </div>
 
             {basketItems.length === 0 ? (
@@ -552,7 +556,11 @@ function OrderingExperience({ auth, api }) {
                       >
                         −
                       </button>
-                      <span aria-live="polite">{item.qty}</span>
+                      <span aria-live="polite">
+                        <span key={item.qty} className="tick">
+                          {item.qty}
+                        </span>
+                      </span>
                       <button
                         type="button"
                         onClick={() => changeQuantity(item.sku, 1)}
@@ -569,10 +577,14 @@ function OrderingExperience({ auth, api }) {
 
             <div className="basket-total">
               <span>Total</span>
-              <strong>{formatEuro.format(total)}</strong>
+              <strong key={total} className="tick">
+                {formatEuro.format(total)}
+              </strong>
             </div>
             <button
-              className="button button-primary checkout-button"
+              className={`button button-primary checkout-button${
+                orderState.status === "submitting" ? " is-sending" : ""
+              }`}
               type="button"
               disabled={
                 itemCount === 0 || !store || orderState.status === "submitting"
